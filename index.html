@@ -1,0 +1,2759 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
+    <title>阅读器</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="一个简洁的电子书阅读器">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="阅读器">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/icons/icon-192x192.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-512x512.png">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #fafafa;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #333;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            left: 0;
+        }
+
+        /* 顶部栏 */
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e5e5;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 56px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+        }
+
+
+
+
+
+
+
+        .file-input {
+            display: none;
+        }
+
+                 .upload-btn {
+             background: #f8f9fa;
+             color: #6c757d;
+             border: 1px solid #dee2e6;
+             padding: 8px 16px;
+             border-radius: 8px;
+             font-size: 14px;
+             cursor: pointer;
+             font-weight: 500;
+         }
+         
+                         .mark-btn {
+            background: #f8f9fa;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-left: 12px;
+        }
+
+
+
+
+
+        /* 阅读区域 */
+        .reader {
+            flex: 1;
+            background: white;
+            position: relative;
+        }
+
+        #viewer {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #fefefe;
+        }
+
+        /* 底部翻页栏 */
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid #e5e5e5;
+            padding: 16px 24px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            height: 100px;
+            padding-top: 12px;
+            position: relative;
+        }
+
+        .nav-group {
+            display: flex;
+            gap: 80px;
+            align-items: center;
+        }
+
+        .nav-btn {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            width: 80px;
+            height: 48px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 20px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            user-select: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .nav-btn:active {
+            background: #e9ecef;
+            transform: scale(0.95);
+        }
+
+        .nav-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .menu-btn {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 18px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            user-select: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .menu-btn:active {
+            background: #e9ecef;
+            transform: scale(0.95);
+        }
+
+        .menu-btn {
+            position: absolute;
+            right: 24px;
+            top: 12px;
+        }
+
+        .settings-btn {
+            position: absolute;
+            top: 12px;
+            left: 24px;
+            background: #f8f9fa;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-btn:active {
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: white;
+            font-size: 18px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            user-select: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .settings-btn:active {
+            background: #0056b3;
+            transform: scale(0.95);
+        }
+
+        /* 加载状态 */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #999;
+            font-size: 14px;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #999;
+        }
+
+        /* 离线状态样式 */
+        .offline .header {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        /* 统一面板 */
+        .unified-panel {
+            position: fixed;
+            bottom: -60vh;
+            left: 0;
+            width: 100%;
+            height: 60vh;
+            background: white;
+            border-top: 1px solid #e5e5e5;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            z-index: 1001;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .unified-panel::-webkit-scrollbar {
+            display: none;
+        }
+
+        .unified-panel.show {
+            transform: translateY(-100%);
+        }
+
+        .unified-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e5e5;
+            background: #f8f9fa;
+        }
+
+        .unified-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .unified-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        /* 分页标签 */
+        .tab-bar {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 16px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+        }
+
+        .tab-btn:hover {
+            background: #e9ecef;
+        }
+
+        /* 分页内容 */
+        .tab-content {
+            display: none;
+            padding: 20px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            max-height: calc(60vh - 140px);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .bookmark-item {
+            padding: 12px;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .bookmark-item:hover {
+            background: #f8f9fa;
+        }
+
+        .bookmark-item-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .bookmark-item-note {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .bookmark-item-time {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .bookmark-item-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .bookmark-action-btn {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+
+        .bookmark-action-btn:hover {
+            background: #e9ecef;
+        }
+
+        /* 书签带子样式 */
+        .floating-bookmark {
+            position: fixed;
+            top: 0;
+            right: 20px;
+            width: 20px;
+            height: 80px;
+            background: #ff6b6b;
+            cursor: grab;
+            z-index: 1000;
+            transition: all 0.2s ease;
+            user-select: none;
+            touch-action: none;
+        }
+
+        .floating-bookmark:active {
+            cursor: grabbing;
+        }
+
+        /* 模拟状态栏延伸效果 */
+        .floating-bookmark::before {
+            content: '';
+            position: absolute;
+            top: -25px;
+            left: 0;
+            width: 100%;
+            height: 25px;
+            background: #ff6b6b;
+        }
+
+        .floating-bookmark:hover,
+        .floating-bookmark:hover::before {
+            background: #ff5252;
+        }
+
+        .floating-bookmark.dragging {
+            transform: translateY(20px);
+            background: #ff5252;
+        }
+
+        .floating-bookmark.dragging::before {
+            background: #ff5252;
+        }
+
+        .mark-section {
+            margin-bottom: 24px;
+        }
+
+        .mark-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .toc-list {
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .toc-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toc-item:hover {
+            background: #f8f9fa;
+        }
+
+        .toc-item.active {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .toc-item-title {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .toc-item-page {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .toc-item-level-1 {
+            padding: 12px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+            background: #ffffff;
+        }
+
+        .toc-item-level-2 {
+            padding: 10px 20px 10px 40px;
+            border-bottom: 1px solid #f5f5f5;
+            cursor: pointer;
+            transition: background 0.2s;
+            background: #fafafa;
+        }
+
+        .toc-item-level-3 {
+            padding: 8px 20px 8px 60px;
+            border-bottom: 1px solid #f8f8f8;
+            cursor: pointer;
+            transition: background 0.2s;
+            background: #f5f5f5;
+        }
+
+        .toc-item-level-4 {
+            padding: 6px 20px 6px 80px;
+            border-bottom: 1px solid #fafafa;
+            cursor: pointer;
+            transition: background 0.2s;
+            background: #f0f0f0;
+        }
+
+        .toc-item-level-5 {
+            padding: 4px 20px 4px 100px;
+            border-bottom: 1px solid #f8f8f8;
+            cursor: pointer;
+            transition: background 0.2s;
+            background: #e8e8e8;
+        }
+
+        .toc-item-level-1:hover,
+        .toc-item-level-2:hover,
+        .toc-item-level-3:hover,
+        .toc-item-level-4:hover,
+        .toc-item-level-5:hover {
+            background: #e3f2fd;
+        }
+        
+        .toc-item-level-1.active,
+        .toc-item-level-2.active,
+        .toc-item-level-3.active,
+        .toc-item-level-4.active,
+        .toc-item-level-5.active {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-left: 3px solid #1976d2;
+        }
+        
+        .toc-item-level-1.active .toc-title-level-1,
+        .toc-item-level-2.active .toc-title-level-2,
+        .toc-item-level-3.active .toc-title-level-3,
+        .toc-item-level-4.active .toc-title-level-4,
+        .toc-item-level-5.active .toc-title-level-5 {
+            color: #1976d2;
+            font-weight: 600;
+        }
+
+        .toc-title-level-1 {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .toc-title-level-2 {
+            font-size: 13px;
+            color: #444;
+            margin-bottom: 3px;
+            font-weight: 500;
+        }
+
+        .toc-title-level-3 {
+            font-size: 12px;
+            color: #555;
+            margin-bottom: 3px;
+            font-weight: 400;
+        }
+
+        .toc-title-level-4 {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 2px;
+            font-weight: 400;
+        }
+
+        .toc-title-level-5 {
+            font-size: 10px;
+            color: #777;
+            margin-bottom: 2px;
+            font-weight: 400;
+        }
+
+        .toc-page-level-1 {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .toc-page-level-2 {
+            font-size: 11px;
+            color: #777;
+        }
+
+        .toc-page-level-3 {
+            font-size: 10px;
+            color: #888;
+        }
+
+        .toc-page-level-4 {
+            font-size: 9px;
+            color: #999;
+        }
+
+        .toc-page-level-5 {
+            font-size: 8px;
+            color: #aaa;
+        }
+
+        /* 遮罩层 */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* 图片模态框 */
+        .image-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .image-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .image-modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 2001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-modal-close:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        #modal-image {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+        }
+
+        /* 设置面板 */
+        .settings-panel {
+            position: fixed;
+            bottom: -60vh;
+            left: 0;
+            width: 100%;
+            height: 60vh;
+            background: white;
+            border-top: 1px solid #e5e5e5;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            z-index: 1001;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+            border-radius: 16px 16px 0 0;
+        }
+
+        .settings-panel::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
+        }
+
+        .settings-panel.show {
+            transform: translateY(-100%);
+        }
+
+
+
+
+
+                 
+         
+
+         
+
+         
+
+
+
+
+        .settings-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e5e5;
+            background: #f8f9fa;
+        }
+
+        .settings-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .settings-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .settings-section {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .settings-section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .setting-item {
+            margin-bottom: 12px;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .setting-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+
+
+        .text-settings {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .setting-row .setting-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 0;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-btn {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            user-select: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .control-btn:active {
+            background: #e9ecef;
+            transform: scale(0.95);
+        }
+
+        .control-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #font-size-value, #line-height-value {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state .text {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .empty-state .subtext {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            .header {
+                padding: 12px;
+            }
+            
+            .controls {
+                padding: 12px 20px;
+                height: 90px;
+                padding-top: 10px;
+            }
+            
+            .nav-group {
+                gap: 60px;
+            }
+            
+            .nav-btn {
+                width: 70px;
+                height: 42px;
+                border-radius: 6px;
+                font-size: 18px;
+            }
+            
+            .menu-btn {
+                width: 42px;
+                height: 42px;
+                border-radius: 6px;
+                font-size: 16px;
+                right: 20px;
+                top: 10px;
+            }
+            
+            .settings-btn {
+                width: 42px;
+                height: 42px;
+                border-radius: 6px;
+                font-size: 16px;
+                left: 20px;
+                top: 10px;
+            }
+        }
+
+        /* 禁止双击放大和滚动 */
+        * {
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        /* 允许面板内容滚动 */
+        .unified-panel,
+        .tab-content,
+        .toc-list,
+        .bookmark-list,
+        .mark-list {
+            touch-action: pan-y;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+
+        html, body {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 允许文本选择 */
+        #viewer {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部栏 -->
+    <div class="header">
+                 <div class="header-left">
+             <input type="file" id="file-input" class="file-input" accept=".epub" />
+             <button class="upload-btn" onclick="document.getElementById('file-input').click()">
+                 选择文件
+             </button>
+             
+         </div>
+        
+
+        
+                         <div class="header-right">
+            
+        </div>
+    </div>
+
+    <!-- 阅读区域 -->
+    <div class="reader">
+        <div class="loading" id="loading">加载中...</div>
+        <div class="empty-state" id="empty-state">
+            <div class="icon">📖</div>
+            <div class="text">选择EPUB文件开始阅读</div>
+            <div class="subtext">支持EPUB格式电子书</div>
+        </div>
+        <div id="viewer"></div>
+        
+        <!-- 浮动书签 -->
+        <div class="floating-bookmark" id="floating-bookmark"></div>
+        
+        <!-- 遮罩层 -->
+        <div class="overlay" id="overlay"></div>
+        
+        <!-- 图片模态框 -->
+        <div class="image-modal" id="image-modal">
+            <div class="image-modal-content">
+                <button class="image-modal-close" id="image-modal-close">×</button>
+                <img id="modal-image" src="" alt="标记图片">
+            </div>
+        </div>
+        
+        <!-- 统一面板 -->
+        <div class="unified-panel" id="unified-panel">
+            <div class="unified-header">
+                <div class="unified-title">管理</div>
+                <button class="unified-close" id="unified-close">×</button>
+            </div>
+            
+            <!-- 分页标签 -->
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="toc">目录</button>
+                <button class="tab-btn" data-tab="bookmark">书签</button>
+                <button class="tab-btn" data-tab="mark">标记</button>
+            </div>
+            
+            <!-- 目录内容 -->
+            <div class="tab-content active" id="toc-content">
+                <ul class="toc-list" id="toc-list">
+                    <!-- 目录项将在这里动态生成 -->
+                </ul>
+            </div>
+            
+            <!-- 书签内容 -->
+            <div class="tab-content" id="bookmark-content">
+                <div class="bookmark-section">
+                    <div class="bookmark-section-title">添加新书签</div>
+                    <button class="control-btn" onclick="addBookmark()" style="width: 100%; background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; margin-bottom: 16px;">添加书签</button>
+                </div>
+                <div class="bookmark-section">
+                    <div class="bookmark-section-title">书签列表</div>
+                    <div id="bookmark-list">
+                        <!-- 书签项将在这里动态生成 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 标记内容 -->
+            <div class="tab-content" id="mark-content">
+                <div class="mark-section">
+                    <div class="mark-section-title">添加新标记组</div>
+                    <button class="control-btn" id="add-mark-btn" style="width: 100%; background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; margin-bottom: 16px;">添加新标记组</button>
+                </div>
+
+                <div class="mark-section">
+                    <div class="mark-section-title">标记列表</div>
+                    <div id="mark-list">
+                        <!-- 标记项将在这里动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置面板 -->
+        <div class="settings-panel" id="settings-panel">
+            <div class="settings-header">
+                <div class="settings-title">设置</div>
+                <button class="settings-close" id="settings-close">×</button>
+            </div>
+            
+
+
+            <div class="settings-section">
+                <div class="settings-section-title">文字设置</div>
+                <div class="text-settings">
+                    <div class="setting-row">
+                        <span class="setting-label">字体大小</span>
+                        <div class="control-group">
+                            <button class="control-btn" id="font-decrease">A-</button>
+                            <span id="font-size-value">16px</span>
+                            <button class="control-btn" id="font-increase">A+</button>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">行间距</span>
+                        <div class="control-group">
+                            <button class="control-btn" id="line-decrease">-</button>
+                            <span id="line-height-value">1.5</span>
+                            <button class="control-btn" id="line-increase">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+
+        </div>
+
+        
+
+
+    </div>
+
+            <!-- 底部翻页栏 -->
+        <div class="controls">
+            <div class="nav-group">
+                <button class="nav-btn" id="prev-btn" disabled>‹</button>
+                <button class="nav-btn" id="next-btn" disabled>›</button>
+            </div>
+            <button class="settings-btn" id="settings-btn">⚙</button>
+            <button class="menu-btn" id="menu-btn">☰</button>
+        </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
+    <script src="db.js"></script>
+    <script>
+
+        let book = null;
+        let rendition = null;
+        let currentBookFileName = null;
+        
+        // 缓存主题设置
+        let cachedFontSize = 16;
+        let cachedLineHeight = 1.5;
+        const defaultFontFamily = "'Microsoft YaHei', sans-serif";
+        
+        // 标记功能相关变量
+        let markWords = [];
+        let markNotes = {};
+        let markImages = {};
+        let markGroups = {};
+
+        
+
+
+        // 文件选择监听
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            if (e.target.files[0]) {
+                const file = e.target.files[0];
+                loadBook(file);
+                e.target.value = ''; // 清空选择
+            }
+        });
+
+        // 翻页按钮事件
+        function addButtonEvent(buttonId, handler) {
+            const button = document.getElementById(buttonId);
+            button.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                handler();
+            });
+            button.addEventListener('click', handler);
+        }
+
+        addButtonEvent('prev-btn', prevPage);
+        addButtonEvent('next-btn', nextPage);
+
+        // 目录按钮事件
+        addButtonEvent('menu-btn', showUnifiedPanel);
+
+        // 关闭按钮事件
+        addButtonEvent('unified-close', hideUnifiedPanel);
+
+        // 遮罩层点击关闭
+        document.getElementById('overlay').addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            hideAllPanels();
+        });
+
+        document.getElementById('overlay').addEventListener('click', hideAllPanels);
+
+                 function hideAllPanels() {
+             hideUnifiedPanel();
+             hideSettings();
+         }
+
+        function showPanel(panelId) {
+            hideAllPanels();
+            document.getElementById(panelId).classList.add('show');
+            document.getElementById('overlay').classList.add('show');
+        }
+
+        // 图片模态框事件
+        document.getElementById('image-modal-close').addEventListener('click', hideImageModal);
+        document.getElementById('image-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideImageModal();
+            }
+        });
+
+
+
+        // 设置按钮事件
+        addButtonEvent('settings-btn', showSettings);
+        addButtonEvent('settings-close', hideSettings);
+
+
+
+
+
+        async function loadBook(file, skipSave = false) {
+            try {
+                showLoading(true);
+                hideEmptyState();
+                
+                // 设置当前文件名
+                currentBookFileName = file.name;
+                console.log('设置当前文件名:', currentBookFileName);
+                
+                                 // 保存书籍到数据库（除非跳过保存）
+                 if (!skipSave) {
+                     try {
+                         await dataStore.saveBook(file);
+                         console.log('书籍已保存到数据库');
+                     } catch (error) {
+                         console.error('保存书籍失败:', error);
+                     }
+                 } else {
+                     console.log('跳过保存书籍到数据库');
+                 }
+                
+                // 禁用控制按钮
+                document.getElementById('prev-btn').disabled = true;
+                document.getElementById('next-btn').disabled = true;
+                
+                // 清理之前的状态
+                if (rendition) {
+                    // 移除之前的事件监听器
+                    document.removeEventListener('keyup', handleKeyPress);
+                    // 销毁之前的rendition
+                    rendition.destroy();
+                }
+                
+                // 清空viewer
+                const viewer = document.getElementById('viewer');
+                viewer.innerHTML = '';
+                
+                // 重置全局变量
+                book = null;
+                rendition = null;
+                
+                // 创建新的book和rendition
+                book = ePub(file);
+                rendition = book.renderTo("viewer", {
+                    width: "100%",
+                    height: "100%",
+                    allowScriptedContent: true
+                });
+
+                                 // 直接显示第一页
+                 await rendition.display();
+                
+
+                
+
+                
+
+                
+
+                
+
+                
+
+                enableControls();
+                
+                // 清空并重新加载目录
+                const tocList = document.getElementById('toc-list');
+                tocList.innerHTML = '';
+                await loadTOC();
+                
+                showLoading(false);
+                
+                // 恢复加载提示文本
+                const loading = document.getElementById('loading');
+                loading.textContent = '加载中...';
+                
+                                 // 重新绑定键盘事件
+                 document.addEventListener('keyup', handleKeyPress);
+                 
+                 
+                
+
+                
+                // 应用保存的设置到当前书籍
+                const savedFontSize = await dataStore.getSetting('readerFontSize', 16);
+                const savedLineHeight = await dataStore.getSetting('readerLineHeight', 1.5);
+                await updateReaderTheme();
+                
+                // 恢复阅读位置的代码已经移到上面了，这里移除重复代码
+                
+
+                
+                // 清理之前的标记并重新应用
+
+                setTimeout(async () => {
+                    // 清理之前的标记
+                    const viewer = document.getElementById('viewer');
+                    const iframe = viewer.querySelector('iframe');
+                    if (iframe && iframe.contentDocument) {
+                        const existingMarks = iframe.contentDocument.querySelectorAll('.mark-note, .mark-image');
+                        existingMarks.forEach(mark => mark.remove());
+                    }
+                    
+                                                          // 重新应用标记
+                  applyMarks();
+                }, 1500);
+                
+
+
+            } catch (error) {
+                console.error('加载失败:', error);
+                alert('文件加载失败');
+                showLoading(false);
+                showEmptyState();
+            }
+        }
+
+                 // 防抖函数
+         function debounce(func, wait) {
+             let timeout;
+             return function executedFunction(...args) {
+                 const later = () => {
+                     clearTimeout(timeout);
+                     func(...args);
+                 };
+                 clearTimeout(timeout);
+                 timeout = setTimeout(later, wait);
+             };
+         }
+         
+                   
+
+        // 防抖的标记应用和目录更新
+        const debouncedApplyMarks = debounce(applyMarks, 150);
+        const debouncedUpdateTOCHighlight = debounce(updateTOCHighlight, 100);
+
+        async function prevPage() {
+            if (rendition) {
+                await rendition.prev();
+                // 更新书籍最后阅读时间
+                if (currentBookFileName) {
+                    try {
+                        await dataStore.updateBookLastRead(currentBookFileName);
+                    } catch (error) {
+                        console.error('更新书籍阅读时间失败:', error);
+                    }
+                }
+                // 批量更新UI
+                debouncedApplyMarks();
+                debouncedUpdateTOCHighlight();
+            }
+        }
+
+        async function nextPage() {
+            if (rendition) {
+                await rendition.next();
+                // 更新书籍最后阅读时间
+                if (currentBookFileName) {
+                    try {
+                        await dataStore.updateBookLastRead(currentBookFileName);
+                    } catch (error) {
+                        console.error('更新书籍阅读时间失败:', error);
+                    }
+                }
+                // 批量更新UI
+                debouncedApplyMarks();
+                debouncedUpdateTOCHighlight();
+            }
+        }
+        
+
+
+        
+         
+          
+         
+         
+         
+         
+
+        
+
+
+
+
+        
+
+
+
+
+        function enableControls() {
+            document.getElementById('prev-btn').disabled = false;
+            document.getElementById('next-btn').disabled = false;
+            // 显示浮动书签
+            document.getElementById('floating-bookmark').style.display = 'flex';
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('show', show);
+        }
+
+        function showEmptyState() {
+            document.getElementById('empty-state').style.display = 'block';
+            // 隐藏浮动书签
+            document.getElementById('floating-bookmark').style.display = 'none';
+        }
+
+        function hideEmptyState() {
+            document.getElementById('empty-state').style.display = 'none';
+        }
+
+        function showUnifiedPanel() {
+            if (book) {
+                showPanel('unified-panel');
+                // 更新目录高亮
+                setTimeout(updateTOCHighlight, 100);
+                // 更新书签列表
+                updateBookmarkList();
+                // 更新标记列表
+                updateMarkList();
+                            } else {
+                    return;
+                }
+        }
+
+        function hideUnifiedPanel() {
+            document.getElementById('unified-panel').classList.remove('show');
+            document.getElementById('overlay').classList.remove('show');
+        }
+        
+        // 更新目录中当前章节的高亮状态
+        async function updateTOCHighlight() {
+            if (!rendition) return;
+            
+            try {
+                const currentLocation = await rendition.currentLocation();
+                if (!currentLocation || !currentLocation.start) return;
+                
+                const currentHref = currentLocation.start.href;
+                const tocItems = document.querySelectorAll('#toc-list li[data-href]');
+                
+                let activeItem = null;
+                
+                // 一次性遍历，同时移除高亮和找到当前项
+                tocItems.forEach(item => {
+                    const itemHref = item.getAttribute('data-href');
+                    if (itemHref === currentHref) {
+                        activeItem = item;
+                        item.classList.add('active');
+                    } else {
+                        item.classList.remove('active');
+                    }
+                });
+                
+                // 只在找到当前项时滚动
+                if (activeItem) {
+                    activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } catch (error) {
+                console.error('更新目录高亮失败:', error);
+            }
+        }
+
+        async function loadTOC() {
+            if (!book) return;
+            
+            try {
+                const toc = await book.loaded.navigation;
+                const tocList = document.getElementById('toc-list');
+                tocList.innerHTML = '';
+                
+                if (toc && toc.toc && toc.toc.length > 0) {
+                    // 递归处理目录项，支持无限层级
+                    function processTocItems(items, level = 1) {
+                        items.forEach((item, index) => {
+                            const li = document.createElement('li');
+                            const levelClass = level <= 5 ? `toc-item-level-${level}` : 'toc-item-level-5';
+                            const titleClass = level <= 5 ? `toc-title-level-${level}` : 'toc-title-level-5';
+                            const pageClass = level <= 5 ? `toc-page-level-${level}` : 'toc-page-level-5';
+                            
+                            li.className = levelClass;
+                            li.setAttribute('data-href', item.href); // 存储href用于匹配当前章节
+                            
+                            li.innerHTML = `
+                                <div class="${titleClass}">${item.label || `第 ${index + 1} 章`}</div>
+                                <div class="${pageClass}">第 ${index + 1} 章</div>
+                            `;
+                            
+                                                         li.addEventListener('click', async () => {
+                                 try {
+                                     await rendition.display(item.href);
+                                     hideUnifiedPanel();
+                                                                                                                 // 批量更新UI
+                                       debouncedApplyMarks();
+                                       debouncedUpdateTOCHighlight();
+                                 } catch (error) {
+                                     console.error('跳转失败:', error);
+                                 }
+                             });
+                            
+                            tocList.appendChild(li);
+                            
+                            // 如果有子项，递归处理
+                            if (item.subitems && item.subitems.length > 0) {
+                                processTocItems(item.subitems, level + 1);
+                            }
+                        });
+                    }
+                    
+                    processTocItems(toc.toc);
+                } else {
+                    // 如果没有目录，显示提示
+                    const li = document.createElement('li');
+                    li.className = 'toc-item';
+                    li.innerHTML = `
+                        <div class="toc-item-title">暂无目录</div>
+                        <div class="toc-item-page">该电子书未包含目录信息</div>
+                    `;
+                    tocList.appendChild(li);
+                }
+            } catch (error) {
+                console.error('加载目录失败:', error);
+                const tocList = document.getElementById('toc-list');
+                tocList.innerHTML = `
+                    <li class="toc-item">
+                        <div class="toc-item-title">加载失败</div>
+                        <div class="toc-item-page">无法加载目录信息</div>
+                    </li>
+                `;
+            }
+        }
+
+
+
+        // 初始化标记数据
+        async function initMarkData() {
+            try {
+                const marks = await dataStore.getAllMarks();
+                const groups = await dataStore.getAllMarkGroups();
+                
+                // 转换数据格式以兼容现有代码
+                markWords = marks.map(mark => mark.word);
+                markNotes = {};
+                markImages = {};
+                markGroups = {};
+                
+                marks.forEach(mark => {
+                    markNotes[mark.word] = mark.note || '';
+                    markImages[mark.word] = mark.imageData || '';
+                    if (mark.groupId) {
+                        markGroups[mark.word] = mark.groupId;
+                    }
+                });
+            } catch (error) {
+                console.error('初始化标记数据失败:', error);
+            }
+        }
+
+        // 保存标记数据到IndexedDB
+        async function saveMarkData() {
+            try {
+                // 清空现有标记
+                const existingMarks = await dataStore.getAllMarks();
+                for (const mark of existingMarks) {
+                    await dataStore.deleteMark(mark.id);
+                }
+                
+                // 添加新标记
+                for (let i = 0; i < markWords.length; i++) {
+                    const word = markWords[i];
+                    const note = markNotes[word] || '';
+                    const imageData = markImages[word] || null;
+                    const groupId = markGroups[word] || null;
+                    
+                    await dataStore.addMark(word, note, imageData, groupId);
+                }
+
+            } catch (error) {
+                console.error('保存标记数据失败:', error);
+            }
+        }
+
+        function showSettings() {
+            showPanel('settings-panel');
+        }
+
+        function hideSettings() {
+            document.getElementById('settings-panel').classList.remove('show');
+            document.getElementById('overlay').classList.remove('show');
+        }
+
+
+         
+         
+
+
+
+
+
+
+
+
+
+        function updateMarkList() {
+            const markList = document.getElementById('mark-list');
+            
+            if (markWords.length === 0) {
+                markList.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">暂无标记</div>';
+                return;
+            }
+            
+            // 设置容器为flex布局，支持横向排列
+            markList.style.cssText = `
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px;
+                align-items: flex-start;
+            `;
+            
+            // 使用 DocumentFragment 批量添加元素
+            const fragment = document.createDocumentFragment();
+            
+            // 按组显示标记
+            const groups = {};
+            markWords.forEach((word, index) => {
+                const groupId = markGroups[word] || 'ungrouped';
+                if (!groups[groupId]) {
+                    groups[groupId] = [];
+                }
+                groups[groupId].push({ word, index });
+            });
+            
+            Object.keys(groups).forEach(groupId => {
+                const groupItems = groups[groupId];
+                const firstItem = groupItems[0];
+                const note = markNotes[firstItem.word] || '';
+                const image = markImages[firstItem.word] || '';
+                
+                // 创建注释块
+                const noteBlock = document.createElement('div');
+                noteBlock.style.cssText = `
+                    padding: 12px;
+                    background: #f0f8ff;
+                    border-radius: 8px;
+                    border: 1px solid #e3f2fd;
+                    cursor: pointer;
+                    transition: background-color 0.2s;
+                    display: inline-block;
+                    max-width: 300px;
+                    word-wrap: break-word;
+                `;
+                
+                // 悬停效果
+                noteBlock.onmouseenter = function() {
+                    this.style.backgroundColor = '#e3f2fd';
+                };
+                noteBlock.onmouseleave = function() {
+                    this.style.backgroundColor = '#f0f8ff';
+                };
+                
+                // 点击打开编辑界面
+                noteBlock.onclick = function() {
+                    editMarkGroup(groupId);
+                };
+                
+                let content = '';
+                
+                // 如果有文字注释，显示文字
+                if (note) {
+                    content += `<div style="color: #333; font-size: 14px; line-height: 1.5; word-break: break-word;">${note}</div>`;
+                }
+                
+                // 如果有图片，显示图片缩略图
+                if (image) {
+                    content += `<div style="margin-top: ${note ? '8px' : '0'};">
+                        <img src="${image}" style="height: 1.2em; width: auto; border-radius: 4px; border: 1px solid #ddd; display: inline-block; vertical-align: middle;">
+                    </div>`;
+                }
+                
+                // 如果既没有文字也没有图片，显示提示
+                if (!note && !image) {
+                    content = '<div style="color: #999; font-size: 14px; font-style: italic;">点击添加注释内容</div>';
+                }
+                
+                noteBlock.innerHTML = content;
+                fragment.appendChild(noteBlock);
+            });
+            
+            // 清空并一次性添加所有元素
+            markList.innerHTML = '';
+            markList.appendChild(fragment);
+        }
+
+
+
+
+        
+
+        
+        async function showEditModal(groupId, isNewGroup = false) {
+            let groupWords = [];
+            let currentNote = '';
+            let currentImage = '';
+            let modalTitle = '';
+            
+            if (isNewGroup) {
+                // 新建组
+                modalTitle = '创建新标记组';
+            } else {
+                // 编辑现有组
+                groupWords = Object.keys(markGroups).filter(w => markGroups[w] === groupId);
+                if (groupWords.length === 0) {
+                    return;
+                }
+                const firstWord = groupWords[0];
+                currentNote = markNotes[firstWord] || '';
+                currentImage = markImages[firstWord] || '';
+                modalTitle = '编辑标记组';
+            }
+            
+            // 创建编辑对话框
+            const editModal = document.createElement('div');
+            editModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+            
+            const editContent = document.createElement('div');
+            editContent.style.cssText = `
+                background: white;
+                padding: 24px;
+                border-radius: 12px;
+                width: 90%;
+                max-width: 400px;
+                max-height: 80vh;
+                overflow-y: auto;
+            `;
+            
+            editContent.innerHTML = `
+                <h3 style="margin: 0 0 20px 0; color: #333;">${modalTitle}</h3>
+                
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; color: #555; font-weight: 500;">标记词</label>
+                    <input type="text" id="edit-words-input" value="${groupWords.join('、')}" style="
+                        width: 100%;
+                        padding: 10px;
+                        border: 1px solid #ddd;
+                        border-radius: 6px;
+                        font-size: 14px;
+                        box-sizing: border-box;
+                    " placeholder="输入标记词，用顿号分隔">
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; color: #555; font-weight: 500;">标记内容</label>
+                    <textarea id="edit-note-input" style="
+                        width: 100%;
+                        padding: 10px;
+                        border: 1px solid #ddd;
+                        border-radius: 6px;
+                        font-size: 14px;
+                        box-sizing: border-box;
+                        min-height: 80px;
+                        resize: vertical;
+                    " placeholder="输入标记内容（可选）">${currentNote}</textarea>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: #555; font-weight: 500;">标记图片</label>
+                    <div id="edit-image-preview" style="margin-bottom: 8px;">
+                        ${currentImage ? `<img src="${currentImage}" style="max-width: 100px; max-height: 60px; border-radius: 4px; border: 1px solid #ddd;">` : '<span style="color: #999;">暂无图片</span>'}
+                    </div>
+                    <input type="file" id="edit-image-input" accept="image/*" style="display: none;">
+                                         <button onclick="document.getElementById('edit-image-input').click()" style="
+                         background: #f8f9fa;
+                         color: #6c757d;
+                         border: 1px solid #dee2e6;
+                         border-radius: 6px;
+                         padding: 8px 12px;
+                         font-size: 12px;
+                         cursor: pointer;
+                         margin-right: 8px;
+                         transition: all 0.15s ease;
+                         user-select: none;
+                         touch-action: manipulation;
+                         -webkit-tap-highlight-color: transparent;
+                     " onmouseover="this.style.backgroundColor='#e9ecef'" onmouseout="this.style.backgroundColor='#f8f9fa'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">选择图片</button>
+                     <button onclick="removeEditImage()" style="
+                         background: #f8f9fa;
+                         color: #6c757d;
+                         border: 1px solid #dee2e6;
+                         border-radius: 6px;
+                         padding: 8px 12px;
+                         font-size: 12px;
+                         cursor: pointer;
+                         transition: all 0.15s ease;
+                         user-select: none;
+                         touch-action: manipulation;
+                         -webkit-tap-highlight-color: transparent;
+                     " onmouseover="this.style.backgroundColor='#e9ecef'" onmouseout="this.style.backgroundColor='#f8f9fa'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">移除图片</button>
+                </div>
+                
+                                 <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                     ${!isNewGroup ? `<button onclick="deleteEditGroup('${groupId}')" style="
+                         background: #f8f9fa;
+                         color: #6c757d;
+                         border: 1px solid #dee2e6;
+                         border-radius: 6px;
+                         padding: 10px 20px;
+                         font-size: 14px;
+                         cursor: pointer;
+                         transition: all 0.15s ease;
+                         user-select: none;
+                         touch-action: manipulation;
+                         -webkit-tap-highlight-color: transparent;
+                     " onmouseover="this.style.backgroundColor='#e9ecef'" onmouseout="this.style.backgroundColor='#f8f9fa'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">删除</button>` : ''}
+                     <button onclick="closeEditModal()" style="
+                         background: #f8f9fa;
+                         color: #6c757d;
+                         border: 1px solid #dee2e6;
+                         border-radius: 6px;
+                         padding: 10px 20px;
+                         font-size: 14px;
+                         cursor: pointer;
+                         transition: all 0.15s ease;
+                         user-select: none;
+                         touch-action: manipulation;
+                         -webkit-tap-highlight-color: transparent;
+                     " onmouseover="this.style.backgroundColor='#e9ecef'" onmouseout="this.style.backgroundColor='#f8f9fa'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">取消</button>
+                     <button onclick="${isNewGroup ? 'saveNewGroup' : 'saveEditGroup'}('${groupId}')" style="
+                         background: #f8f9fa;
+                         color: #6c757d;
+                         border: 1px solid #dee2e6;
+                         border-radius: 6px;
+                         padding: 10px 20px;
+                         font-size: 14px;
+                         cursor: pointer;
+                         transition: all 0.15s ease;
+                         user-select: none;
+                         touch-action: manipulation;
+                         -webkit-tap-highlight-color: transparent;
+                     " onmouseover="this.style.backgroundColor='#e9ecef'" onmouseout="this.style.backgroundColor='#f8f9fa'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${isNewGroup ? '创建' : '保存'}</button>
+                 </div>
+            `;
+            
+            editModal.appendChild(editContent);
+            document.body.appendChild(editModal);
+            
+            // 绑定图片上传事件
+            document.getElementById('edit-image-input').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const imageData = e.target.result;
+                        document.getElementById('edit-image-preview').innerHTML = `<img src="${imageData}" style="max-width: 100px; max-height: 60px; border-radius: 4px; border: 1px solid #ddd;">`;
+                        window.editImageData = imageData;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // 存储当前编辑的图片数据
+            window.editImageData = currentImage;
+            
+            // 点击外部区域关闭编辑界面
+            editModal.addEventListener('click', function(e) {
+                if (e.target === editModal) {
+                    closeEditModal();
+                }
+            });
+        }
+        
+        // 编辑现有组的函数
+        async function editMarkGroup(groupId) {
+            await showEditModal(groupId, false);
+        }
+        
+        function removeEditImage() {
+            document.getElementById('edit-image-preview').innerHTML = '<span style="color: #999;">暂无图片</span>';
+            window.editImageData = null;
+        }
+        
+        function closeEditModal() {
+            const modal = document.querySelector('div[style*="z-index: 10000"]');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        async function deleteEditGroup(groupId) {
+            if (confirm('确定要删除这个标记组吗？')) {
+                // 找到该组的所有词
+                const groupWords = Object.keys(markGroups).filter(w => markGroups[w] === groupId);
+                
+                // 删除该组的所有词
+                groupWords.forEach(word => {
+                    const wordIndex = markWords.indexOf(word);
+                    if (wordIndex > -1) {
+                        markWords.splice(wordIndex, 1);
+                        delete markNotes[word];
+                        delete markImages[word];
+                        delete markGroups[word];
+                    }
+                });
+                
+                // 保存到IndexedDB
+                await saveMarkData();
+                
+                // 关闭对话框并更新显示
+                closeEditModal();
+                updateMarkList();
+                applyMarks();
+            }
+        }
+        
+        async function saveEditGroup(groupId) {
+            const wordsInput = document.getElementById('edit-words-input').value.trim();
+            const noteInput = document.getElementById('edit-note-input').value.trim();
+            const newImageData = window.editImageData;
+            
+            if (!wordsInput) {
+                alert('请输入标记词');
+                return;
+            }
+            
+            // 分割新的词
+            const newWords = wordsInput.split(/[、，,;；\s]+/).filter(word => word.trim());
+            
+            if (newWords.length === 0) {
+                alert('请输入有效的标记词');
+                return;
+            }
+            
+            // 找到该组的所有旧词
+            const oldWords = Object.keys(markGroups).filter(w => markGroups[w] === groupId);
+            
+            // 删除旧词
+            oldWords.forEach(word => {
+                const wordIndex = markWords.indexOf(word);
+                if (wordIndex > -1) {
+                    markWords.splice(wordIndex, 1);
+                    delete markNotes[word];
+                    delete markImages[word];
+                    delete markGroups[word];
+                }
+            });
+            
+            // 添加新词
+            newWords.forEach(word => {
+                const trimmedWord = word.trim();
+                if (trimmedWord && !markWords.includes(trimmedWord)) {
+                    markWords.push(trimmedWord);
+                    markGroups[trimmedWord] = groupId;
+                    if (noteInput) {
+                        markNotes[trimmedWord] = noteInput;
+                    }
+                    if (newImageData) {
+                        markImages[trimmedWord] = newImageData;
+                    }
+                }
+            });
+            
+            // 保存到IndexedDB
+            await saveMarkData();
+            
+            // 关闭对话框并更新显示
+            closeEditModal();
+            updateMarkList();
+            applyMarks();
+        }
+        
+        function createNewMarkGroup() {
+            // 生成新的组ID
+            const newGroupId = Date.now().toString();
+            // 使用通用的编辑界面
+            showEditModal(newGroupId, true);
+        }
+        
+        async function saveNewGroup(groupId) {
+            const wordsInput = document.getElementById('edit-words-input').value.trim();
+            const noteInput = document.getElementById('edit-note-input').value.trim();
+            const newImageData = window.editImageData;
+            
+            if (!wordsInput) {
+                alert('请输入标记词');
+                return;
+            }
+            
+            // 分割新的词
+            const newWords = wordsInput.split(/[、，,;；\s]+/).filter(word => word.trim());
+            
+            if (newWords.length === 0) {
+                alert('请输入有效的标记词');
+                return;
+            }
+            
+            // 检查是否有重复的词
+            const existingWords = newWords.filter(word => markWords.includes(word.trim()));
+            if (existingWords.length > 0) {
+                alert(`以下标记已存在：${existingWords.join('、')}`);
+                return;
+            }
+            
+            // 添加新词
+            newWords.forEach(word => {
+                const trimmedWord = word.trim();
+                if (trimmedWord) {
+                    markWords.push(trimmedWord);
+                    markGroups[trimmedWord] = groupId;
+                    if (noteInput) {
+                        markNotes[trimmedWord] = noteInput;
+                    }
+                    if (newImageData) {
+                        markImages[trimmedWord] = newImageData;
+                    }
+                }
+            });
+            
+            // 保存到IndexedDB
+            await saveMarkData();
+            
+            // 关闭对话框并更新显示
+            closeEditModal();
+            updateMarkList();
+            applyMarks();
+        }
+
+        function showImageModal(imageSrc) {
+            const modal = document.getElementById('image-modal');
+            const modalImage = document.getElementById('modal-image');
+            modalImage.src = imageSrc;
+            modal.classList.add('show');
+        }
+
+        function hideImageModal() {
+            const modal = document.getElementById('image-modal');
+            modal.classList.remove('show');
+        }
+
+        function applyMarks() {
+            if (!rendition || markWords.length === 0) return;
+            
+            const viewer = document.getElementById('viewer');
+            const iframe = viewer.querySelector('iframe');
+            if (!iframe || !iframe.contentDocument) return;
+            
+            // 缓存常用值
+            const doc = iframe.contentDocument;
+            const body = doc.body;
+            
+            // 移除之前的标记
+            const existingMarks = doc.querySelectorAll('.mark-note, .mark-image');
+            existingMarks.forEach(mark => mark.remove());
+            
+            // 预编译正则表达式和缓存标记数据
+            const wordData = markWords.map(word => ({
+                word,
+                regex: new RegExp(`(${word})`, 'gi'),
+                note: markNotes[word] || '',
+                image: markImages[word] || ''
+            }));
+            
+            // 一次性获取所有文本节点
+            const textNodes = [];
+            const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT, null, false);
+            
+            let node;
+            while (node = walker.nextNode()) {
+                textNodes.push(node);
+            }
+            
+            // 批量处理文本节点
+            textNodes.forEach(textNode => {
+                const text = textNode.textContent;
+                let hasChanges = false;
+                const fragment = doc.createDocumentFragment();
+                let lastIndex = 0;
+                
+                // 检查所有标记词
+                for (const { word, regex, note, image } of wordData) {
+                    if (!text.toLowerCase().includes(word.toLowerCase())) continue;
+                    
+                    hasChanges = true;
+                    regex.lastIndex = 0; // 重置正则表达式状态
+                    let match;
+                    
+                    while ((match = regex.exec(text)) !== null) {
+                        // 添加匹配前的文本
+                        if (match.index > lastIndex) {
+                            fragment.appendChild(doc.createTextNode(text.slice(lastIndex, match.index)));
+                        }
+                        
+                        // 添加匹配的文本
+                        fragment.appendChild(doc.createTextNode(match[1]));
+                        
+                        // 添加标记内容
+                        if (note) {
+                            const markNote = doc.createElement('span');
+                            markNote.className = 'mark-note';
+                            markNote.textContent = note;
+                            fragment.appendChild(markNote);
+                        }
+                        
+                        if (image) {
+                            const markImage = doc.createElement('img');
+                            markImage.className = 'mark-image';
+                            markImage.src = image;
+                            markImage.style.cssText = `
+                                height: 1.2em;
+                                width: 1.2em;
+                                margin-left: 4px;
+                                border-radius: 2px;
+                                border: 1px solid #ddd;
+                                vertical-align: middle;
+                                cursor: pointer;
+                                transition: opacity 0.2s;
+                                object-fit: cover;
+                            `;
+                            markImage.onerror = () => {
+                                console.error('图片加载失败:', image.substring(0, 50) + '...');
+                            };
+                            markImage.onclick = () => showImageModal(image);
+                            markImage.onmouseenter = function() {
+                                this.style.opacity = '0.8';
+                            };
+                            markImage.onmouseleave = function() {
+                                this.style.opacity = '1';
+                            };
+                            fragment.appendChild(markImage);
+                        }
+                        
+                        lastIndex = regex.lastIndex;
+                    }
+                }
+                
+                // 添加剩余文本
+                if (lastIndex < text.length) {
+                    fragment.appendChild(doc.createTextNode(text.slice(lastIndex)));
+                }
+                
+                // 只在有变化时替换节点
+                if (hasChanges && fragment.childNodes.length > 0) {
+                    textNode.parentNode.replaceChild(fragment, textNode);
+                }
+            });
+        }
+
+        // 添加标记按钮事件
+        document.getElementById('add-mark-btn').addEventListener('click', createNewMarkGroup);
+
+        // 分页切换功能
+        function initTabSwitching() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            console.log('初始化分页切换，找到按钮数量:', tabBtns.length);
+
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const targetTab = this.getAttribute('data-tab');
+                    console.log('点击分页按钮:', targetTab);
+                    
+                    // 移除所有活动状态
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    // 添加活动状态
+                    this.classList.add('active');
+                    const targetContent = document.getElementById(targetTab + '-content');
+                    if (targetContent) {
+                        targetContent.classList.add('active');
+                        console.log('切换到分页:', targetTab);
+                    } else {
+                        console.error('找不到目标内容:', targetTab + '-content');
+                    }
+                });
+            });
+        }
+
+        // 在页面加载完成后初始化分页切换
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initTabSwitching);
+        } else {
+            initTabSwitching();
+        }
+
+        // 书签功能
+        async function addBookmark() {
+            if (!rendition || !currentBookFileName) {
+                return;
+            }
+
+            try {
+                const location = await rendition.currentLocation();
+                if (!location || !location.start || !location.start.cfi) {
+                    return;
+                }
+
+                // 使用epubjs的正确进度计算方法
+                let progress = 0;
+                try {
+                    // 方法1：使用epubjs的spine进度
+                    const spine = await book.spine;
+                    const currentHref = location.start.href;
+                    const spineItems = spine.items;
+                    const currentIndex = spineItems.findIndex(item => item.href === currentHref);
+                    
+                    if (currentIndex !== -1) {
+                        progress = (currentIndex + 1) / spineItems.length;
+                        console.log('使用spine进度:', progress, `(${currentIndex + 1}/${spineItems.length})`);
+                    }
+                    // 方法2：使用location的location
+                    else if (location.start.location !== undefined) {
+                        progress = location.start.location;
+                        console.log('使用location.start.location:', progress);
+                    }
+                    // 方法3：使用location的percentage
+                    else if (location.start.percentage !== undefined) {
+                        progress = location.start.percentage;
+                        console.log('使用location.start.percentage:', progress);
+                    }
+                } catch (e) {
+                    console.log('进度计算失败:', e);
+                }
+                const title = `${Math.round(progress * 100)}%`;
+
+                await dataStore.addBookmark(
+                    currentBookFileName,
+                    location.start.cfi,
+                    title,
+                    ''
+                );
+
+                // 立即更新书签列表
+                updateBookmarkList();
+            } catch (error) {
+                console.error('添加书签失败:', error);
+            }
+        }
+
+        async function updateBookmarkList() {
+            if (!currentBookFileName) {
+                document.getElementById('bookmark-list').innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">请先加载电子书</div>';
+                return;
+            }
+
+            try {
+                const bookmarks = await dataStore.getBookmarks(currentBookFileName);
+                const bookmarkList = document.getElementById('bookmark-list');
+
+                if (bookmarks.length === 0) {
+                    bookmarkList.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">暂无书签</div>';
+                    return;
+                }
+
+                bookmarkList.innerHTML = '';
+                bookmarks.forEach(bookmark => {
+                    const bookmarkItem = document.createElement('div');
+                    bookmarkItem.className = 'bookmark-item';
+                    bookmarkItem.style.cursor = 'pointer';
+                    
+                    bookmarkItem.innerHTML = `
+                        <div class="bookmark-item-title" style="color: #007bff; font-weight: bold; font-size: 16px;">
+                            ${bookmark.title}
+                        </div>
+                        <div class="bookmark-item-time">${new Date(bookmark.timestamp).toLocaleString()}</div>
+                        <div class="bookmark-item-actions">
+                            <button class="bookmark-action-btn" onclick="deleteBookmark(${bookmark.id}); event.stopPropagation();">删除</button>
+                        </div>
+                    `;
+                    
+                    // 点击整个书签项跳转
+                    bookmarkItem.addEventListener('click', () => {
+                        goToBookmark(bookmark.id);
+                    });
+                    
+                    bookmarkList.appendChild(bookmarkItem);
+                });
+            } catch (error) {
+                console.error('更新书签列表失败:', error);
+                document.getElementById('bookmark-list').innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">加载书签失败</div>';
+            }
+        }
+
+        async function goToBookmark(bookmarkId) {
+            try {
+                const bookmarks = await dataStore.getBookmarks(currentBookFileName);
+                const bookmark = bookmarks.find(b => b.id === bookmarkId);
+                
+                if (!bookmark) {
+                    return;
+                }
+
+                await rendition.display(bookmark.cfi);
+                hideUnifiedPanel();
+            } catch (error) {
+                console.error('跳转书签失败:', error);
+            }
+        }
+
+
+
+        async function deleteBookmark(bookmarkId) {
+            if (confirm('确定要删除这个书签吗？')) {
+                try {
+                    await dataStore.deleteBookmark(bookmarkId);
+                    updateBookmarkList();
+                } catch (error) {
+                    console.error('删除书签失败:', error);
+                }
+            }
+        }
+
+        // 书签拖拽功能
+        function initBookmarkDrag() {
+            const bookmark = document.getElementById('floating-bookmark');
+            let startY = 0;
+            let currentY = 0;
+            let isDragging = false;
+            let dragThreshold = 30; // 需要拖拽30px才触发添加书签
+
+            // 鼠标事件
+            bookmark.addEventListener('mousedown', startDrag);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', endDrag);
+
+            // 触摸事件
+            bookmark.addEventListener('touchstart', startDrag);
+            document.addEventListener('touchmove', drag);
+            document.addEventListener('touchend', endDrag);
+
+            function startDrag(e) {
+                e.preventDefault();
+                isDragging = true;
+                startY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
+                currentY = startY;
+                bookmark.classList.add('dragging');
+            }
+
+            function drag(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                currentY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
+                const deltaY = currentY - startY;
+                
+                // 限制只能向下拖拽
+                if (deltaY > 0) {
+                    bookmark.style.transform = `translateY(${Math.min(deltaY, dragThreshold)}px)`;
+                }
+            }
+
+            function endDrag(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                isDragging = false;
+                
+                const deltaY = currentY - startY;
+                
+                // 如果拖拽距离超过阈值，添加书签
+                if (deltaY >= dragThreshold) {
+                    addBookmark();
+                }
+                
+                // 重置样式
+                bookmark.classList.remove('dragging');
+                bookmark.style.transform = '';
+            }
+        }
+
+        // 初始化设置事件
+        async function initSettings() {
+            // 从数据库获取保存的设置
+            const savedFontSize = await dataStore.getSetting('readerFontSize', 16);
+            const savedLineHeight = await dataStore.getSetting('readerLineHeight', 1.5);
+            
+            // 设置缓存值
+            cachedFontSize = savedFontSize;
+            cachedLineHeight = savedLineHeight;
+            
+            // 字体大小设置
+            let currentFontSize = savedFontSize;
+            const fontSizeValue = document.getElementById('font-size-value');
+            fontSizeValue.textContent = currentFontSize + 'px';
+            
+
+
+            // 字体大小设置
+            addButtonEvent('font-decrease', () => {
+                if (currentFontSize > 12) {
+                    currentFontSize -= 2;
+                    fontSizeValue.textContent = currentFontSize + 'px';
+                    debouncedApplyFontSize(currentFontSize);
+                    updateFontButtons();
+                }
+            });
+
+            addButtonEvent('font-increase', () => {
+                if (currentFontSize < 36) {
+                    currentFontSize += 2;
+                    fontSizeValue.textContent = currentFontSize + 'px';
+                    debouncedApplyFontSize(currentFontSize);
+                    updateFontButtons();
+                }
+            });
+
+            // 行间距设置
+            let currentLineHeight = savedLineHeight;
+            const lineHeightValue = document.getElementById('line-height-value');
+            lineHeightValue.textContent = currentLineHeight;
+            
+            addButtonEvent('line-decrease', () => {
+                if (currentLineHeight > 1.2) {
+                    currentLineHeight = Math.round((currentLineHeight - 0.1) * 10) / 10;
+                    lineHeightValue.textContent = currentLineHeight;
+                    debouncedApplyLineHeight(currentLineHeight);
+                    updateLineButtons();
+                }
+            });
+
+            addButtonEvent('line-increase', () => {
+                if (currentLineHeight < 3.0) {
+                    currentLineHeight = Math.round((currentLineHeight + 0.1) * 10) / 10;
+                    lineHeightValue.textContent = currentLineHeight;
+                    debouncedApplyLineHeight(currentLineHeight);
+                    updateLineButtons();
+                }
+            });
+
+            // 创建防抖版本的设置应用函数
+            const debouncedApplyFontSize = debounce(applyFontSize, 100);
+            const debouncedApplyLineHeight = debounce(applyLineHeight, 100);
+
+
+
+
+
+            // 初始化按钮状态
+            updateFontButtons();
+            updateLineButtons();
+        }
+
+        function updateFontButtons() {
+            const decreaseBtn = document.getElementById('font-decrease');
+            const increaseBtn = document.getElementById('font-increase');
+            const fontSizeValue = document.getElementById('font-size-value');
+            const currentSize = parseInt(fontSizeValue.textContent);
+            
+            decreaseBtn.disabled = currentSize <= 12;
+            increaseBtn.disabled = currentSize >= 36;
+        }
+
+        function updateLineButtons() {
+            const decreaseBtn = document.getElementById('line-decrease');
+            const increaseBtn = document.getElementById('line-increase');
+            const lineHeightValue = document.getElementById('line-height-value');
+            const currentHeight = parseFloat(lineHeightValue.textContent);
+            
+            decreaseBtn.disabled = currentHeight <= 1.2;
+            increaseBtn.disabled = currentHeight >= 3.0;
+        }
+
+
+
+
+
+
+
+        async function applyFontSize(size) {
+            cachedFontSize = size;
+            await dataStore.setSetting('readerFontSize', size);
+            updateReaderTheme();
+        }
+
+        async function applyLineHeight(height) {
+            cachedLineHeight = height;
+            await dataStore.setSetting('readerLineHeight', height);
+            updateReaderTheme();
+        }
+
+
+
+        // 更新阅读器主题
+        async function updateReaderTheme() {
+            if (!rendition) return;
+            
+            // 使用缓存的值，避免重复数据库查询
+            const currentFontSize = cachedFontSize;
+            const currentLineHeight = cachedLineHeight;
+            
+            // 定义主题样式 - 使用更全面的选择器
+            const themeStyles = {
+                'body': {
+                    'font-size': currentFontSize + 'px !important',
+                    'line-height': currentLineHeight + ' !important',
+                    'font-family': defaultFontFamily + ' !important'
+                },
+                'p, div, span, h1, h2, h3, h4, h5, h6, a, li, td, th, section, article, aside, nav, header, footer, main': {
+                    'font-size': currentFontSize + 'px !important',
+                    'line-height': currentLineHeight + ' !important',
+                    'font-family': defaultFontFamily + ' !important'
+                },
+                '*': {
+                    'font-size': currentFontSize + 'px !important',
+                    'line-height': currentLineHeight + ' !important',
+                    'font-family': defaultFontFamily + ' !important'
+                }
+            };
+            
+            try {
+                // 先移除旧主题（如果存在）
+                try {
+                    rendition.themes.remove('reader-theme');
+                } catch (e) {
+                    // 忽略移除错误
+                }
+                
+                // 注册新主题
+                rendition.themes.register('reader-theme', themeStyles);
+                
+                // 应用主题
+                rendition.themes.select('reader-theme');
+            } catch (e) {
+                console.log('主题更新失败:', e);
+            }
+        }
+
+
+
+
+        
+        function updateSettingsDisplay(fontSize, lineHeight) {
+            // 更新字体大小显示
+            const fontSizeValue = document.getElementById('font-size-value');
+            if (fontSizeValue) {
+                fontSizeValue.textContent = fontSize + 'px';
+            }
+            
+            // 更新行间距显示
+            const lineHeightValue = document.getElementById('line-height-value');
+            if (lineHeightValue) {
+                lineHeightValue.textContent = lineHeight;
+            }
+            
+            // 更新按钮状态
+            updateFontButtons();
+            updateLineButtons();
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'ArrowLeft') prevPage();
+            if (e.key === 'ArrowRight') nextPage();
+        }
+
+
+
+        // 防止双击缩放
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function (event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+                                  // 禁止页面滚动，但允许面板滚动
+         document.addEventListener('touchmove', function(event) {
+             // 检查是否在统一面板内
+             const unifiedPanel = document.getElementById('unified-panel');
+             if (unifiedPanel && unifiedPanel.contains(event.target)) {
+                 return; // 允许统一面板内的滚动
+             }
+             // 检查是否在设置面板内
+             const settingsPanel = document.getElementById('settings-panel');
+             if (settingsPanel && settingsPanel.contains(event.target)) {
+                 return; // 允许设置面板内的滚动
+             }
+
+             event.preventDefault();
+         }, { passive: false });
+
+        // 禁止页面缩放
+        ['gesturestart', 'gesturechange', 'gestureend'].forEach(eventType => {
+            document.addEventListener(eventType, event => event.preventDefault());
+        });
+
+                 // 初始化设置和标记数据
+         async function initApp() {
+             try {
+                 // 初始化数据库
+                 await dataStore.init();
+                 
+                 
+                 
+                 // 恢复保存的设置
+                 const savedFontSize = await dataStore.getSetting('readerFontSize', 16);
+                 const savedLineHeight = await dataStore.getSetting('readerLineHeight', 1.5);
+                
+                // 应用保存的设置
+                applyFontSize(savedFontSize);
+                applyLineHeight(savedLineHeight);
+                
+                // 更新设置面板的显示
+                updateSettingsDisplay(savedFontSize, savedLineHeight);
+                
+                // 检查是否有上次阅读的书籍
+                checkLastReadBook();
+                
+                                 // 初始化标记数据
+                 await initMarkData();
+                 
+                 
+                 
+                 console.log('应用初始化完成');
+            } catch (error) {
+                console.error('应用初始化失败:', error);
+            }
+        }
+        
+        // 检查上次阅读的书籍
+        async function checkLastReadBook() {
+            try {
+                // 尝试从数据库获取最近阅读的书籍
+                const lastReadBook = await dataStore.getLastReadBook();
+                
+                if (lastReadBook) {
+                    console.log('找到最近阅读的书籍:', lastReadBook.name);
+                    // 直接自动加载上次的书籍
+                    await autoLoadLastBook();
+                } else {
+                    console.log('没有找到阅读记录');
+                    showDefaultEmptyState();
+                }
+            } catch (error) {
+                console.error('检查阅读记录失败:', error);
+                showDefaultEmptyState();
+            }
+        }
+
+        // 自动加载上次阅读的书籍
+        async function autoLoadLastBook() {
+            try {
+                const lastReadBook = await dataStore.getLastReadBook();
+                if (!lastReadBook) {
+                    showDefaultEmptyState();
+                    return;
+                }
+
+                // 检查书籍数据是否存在
+                let bookData = lastReadBook.data;
+                if (!bookData && lastReadBook.fileData) {
+                    // 处理旧的数据结构（ArrayBuffer）
+                    console.log('检测到旧的数据结构，转换为base64');
+                    const arrayBuffer = lastReadBook.fileData;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+                    bookData = 'data:application/epub+zip;base64,' + btoa(binaryString);
+                }
+                
+                if (!bookData) {
+                    console.error('书籍数据不存在:', lastReadBook);
+                    showDefaultEmptyState();
+                    return;
+                }
+
+                // 显示加载提示
+                const emptyState = document.getElementById('empty-state');
+                emptyState.innerHTML = `
+                    <div class="icon">📖</div>
+                    <div class="text">正在加载：${lastReadBook.name}</div>
+                    <div class="subtext">请稍候...</div>
+                `;
+
+                console.log('开始加载书籍:', lastReadBook.name);
+                console.log('书籍数据长度:', bookData.length);
+
+                // 将 base64 数据转换为 File 对象
+                const response = await fetch(bookData);
+                const blob = await response.blob();
+                const bookFile = new File([blob], lastReadBook.name, {
+                    type: 'application/epub+zip',
+                    lastModified: lastReadBook.lastModified
+                });
+
+                console.log('书籍文件创建成功:', bookFile.name, bookFile.size);
+
+                // 加载书籍（跳过保存，因为书籍已经在数据库中）
+                await loadBook(bookFile, true);
+                
+            } catch (error) {
+                console.error('自动加载书籍失败:', error);
+                showDefaultEmptyState();
+            }
+        }
+
+                 // 显示默认空状态
+         function showDefaultEmptyState() {
+             const emptyState = document.getElementById('empty-state');
+             emptyState.innerHTML = `
+                 <div class="icon">📖</div>
+                 <div class="text">选择EPUB文件开始阅读</div>
+                 <div class="subtext">支持EPUB格式电子书</div>
+                 <button class="upload-btn" style="margin-top: 16px;" onclick="document.getElementById('file-input').click()">选择书籍</button>
+             `;
+         }
+         
+         
+        
+        // 初始化应用
+        initApp().then(() => {
+            // 初始化设置事件监听器
+            initSettings();
+            // 初始化隐藏浮动书签
+            document.getElementById('floating-bookmark').style.display = 'none';
+            // 初始化书签拖拽功能
+            initBookmarkDrag();
+        });
+        
+
+
+        // 注册Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker注册成功:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker注册失败:', error);
+                    });
+            });
+        }
+
+
+
+        // 检测离线状态
+        window.addEventListener('online', () => {
+            console.log('网络已连接');
+            document.body.classList.remove('offline');
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('网络已断开');
+            document.body.classList.add('offline');
+        });
+    </script>
+</body>
+</html>
