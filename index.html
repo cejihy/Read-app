@@ -1453,40 +1453,181 @@
                 const groups = await dataStore.getAllMarkGroups();
                 
                 // 转换数据格式以兼容现有代码
-                markWords = marks.map(mark => mark.word);
+                markWords = [];
                 markNotes = {};
                 markImages = {};
                 markGroups = {};
                 
-                marks.forEach(mark => {
-                    markNotes[mark.word] = mark.note || '';
-                    markImages[mark.word] = mark.imageData || '';
-                    if (mark.groupId) {
-                        markGroups[mark.word] = mark.groupId;
-                    }
-                });
+                // 检查是否需要数据迁移（旧格式包含note和imageData字段）
+                const needsMigration = marks.some(mark => mark.note !== undefined || mark.imageData !== undefined);
+                
+                if (needsMigration) {
+                    console.log('检测到旧数据格式，开始迁移...');
+                    await migrateOldMarkData(marks);
+                    // 重新获取迁移后的数据
+                    const newMarks = await dataStore.getAllMarks();
+                    const newGroups = await dataStore.getAllMarkGroups();
+                    await loadMarkDataFromDB(newMarks, newGroups);
+                } else {
+                    await loadMarkDataFromDB(marks, groups);
+                }
+                
             } catch (error) {
                 console.error('初始化标记数据失败:', error);
+            }
+        }
+
+        // 从数据库加载标记数据
+        async function loadMarkDataFromDB(marks, groups) {
+            console.log('加载标记数据:', { marks: marks.length, groups: groups.length });
+            
+            // 处理分组标记
+            groups.forEach(group => {
+                console.log('处理组:', group.id, group.words);
+                group.words.forEach(word => {
+                    markWords.push(word);
+                    markNotes[word] = group.note || '';
+                    markImages[word] = group.imageData || '';
+                    markGroups[word] = group.id;
+                });
+            });
+            
+            // 处理未分组的标记
+            marks.forEach(mark => {
+                if (!mark.groupId) {
+                    markWords.push(mark.word);
+                    markNotes[mark.word] = '';
+                    markImages[mark.word] = '';
+                    markGroups[mark.word] = null;
+                }
+            });
+            
+            console.log('加载完成:', { 
+                markWords: markWords.length, 
+                markGroups: Object.keys(markGroups).length 
+            });
+        }
+
+        // 迁移旧数据格式
+        async function migrateOldMarkData(oldMarks) {
+            try {
+                // 按groupId分组
+                const groupData = {};
+                
+                oldMarks.forEach(mark => {
+                    const groupId = mark.groupId || 'ungrouped';
+                    if (!groupData[groupId]) {
+                        groupData[groupId] = {
+                            words: [],
+                            note: '',
+                            imageData: null
+                        };
+                    }
+                    
+                    groupData[groupId].words.push(mark.word);
+                    
+                    // 使用第一个有注释和图片的词汇的数据
+                    if (!groupData[groupId].note && mark.note) {
+                        groupData[groupId].note = mark.note;
+                    }
+                    if (!groupData[groupId].imageData && mark.imageData) {
+                        groupData[groupId].imageData = mark.imageData;
+                    }
+                });
+                
+                // 清空旧数据
+                for (const mark of oldMarks) {
+                    await dataStore.deleteMark(mark.id);
+                }
+                
+                // 创建新的数据结构
+                for (const [oldGroupId, data] of Object.entries(groupData)) {
+                    if (oldGroupId === 'ungrouped') {
+                        // 未分组的标记
+                        for (const word of data.words) {
+                            await dataStore.addMark(word);
+                        }
+                    } else {
+                        // 分组的标记
+                        const newGroupId = await dataStore.addMarkGroup(
+                            `标记组_${oldGroupId}`, 
+                            data.words, 
+                            data.note, 
+                            data.imageData
+                        );
+                        
+                        for (const word of data.words) {
+                            await dataStore.addMark(word, newGroupId);
+                        }
+                    }
+                }
+                
+                console.log('数据迁移完成');
+            } catch (error) {
+                console.error('数据迁移失败:', error);
             }
         }
 
         // 保存标记数据到IndexedDB
         async function saveMarkData() {
             try {
-                // 清空现有标记
+                // 清空现有标记和标记组
                 const existingMarks = await dataStore.getAllMarks();
                 for (const mark of existingMarks) {
                     await dataStore.deleteMark(mark.id);
                 }
                 
-                // 添加新标记
+                const existingGroups = await dataStore.getAllMarkGroups();
+                for (const group of existingGroups) {
+                    await dataStore.deleteMarkGroup(group.id);
+                }
+                
+                // 按组整理数据
+                const groupData = {};
                 for (let i = 0; i < markWords.length; i++) {
                     const word = markWords[i];
-                    const note = markNotes[word] || '';
-                    const imageData = markImages[word] || null;
-                    const groupId = markGroups[word] || null;
+                    const groupId = markGroups[word] || 'ungrouped';
                     
-                    await dataStore.addMark(word, note, imageData, groupId);
+                    if (!groupData[groupId]) {
+                        groupData[groupId] = {
+                            words: [],
+                            note: '',
+                            imageData: null
+                        };
+                    }
+                    
+                    groupData[groupId].words.push(word);
+                    
+                    // 使用第一个词汇的注释和图片作为组的注释和图片
+                    if (!groupData[groupId].note) {
+                        groupData[groupId].note = markNotes[word] || '';
+                    }
+                    if (!groupData[groupId].imageData) {
+                        groupData[groupId].imageData = markImages[word] || null;
+                    }
+                }
+                
+                // 保存标记组
+                for (const [oldGroupId, data] of Object.entries(groupData)) {
+                    if (oldGroupId === 'ungrouped') {
+                        // 未分组的标记，每个词汇单独保存
+                        for (const word of data.words) {
+                            await dataStore.addMark(word);
+                        }
+                    } else {
+                        // 分组的标记，保存为组
+                        const newGroupId = await dataStore.addMarkGroup(
+                            `标记组_${oldGroupId}`, 
+                            data.words, 
+                            data.note, 
+                            data.imageData
+                        );
+                        
+                        // 为组内每个词汇创建标记记录
+                        for (const word of data.words) {
+                            await dataStore.addMark(word, newGroupId);
+                        }
+                    }
                 }
 
             } catch (error) {
@@ -1574,6 +1715,8 @@
                 
                 // 点击打开编辑界面
                 noteBlock.onclick = function() {
+                    console.log('点击标记组:', groupId);
+                    console.log('当前markGroups:', markGroups);
                     editMarkGroup(groupId);
                 };
                 
@@ -1623,7 +1766,10 @@
             } else {
                 // 编辑现有组
                 groupWords = Object.keys(markGroups).filter(w => markGroups[w] === groupId);
+                console.log('查找组词汇:', groupId, groupWords);
                 if (groupWords.length === 0) {
+                    console.error('未找到组词汇:', groupId);
+                    alert('未找到对应的标记组，请刷新页面重试');
                     return;
                 }
                 const firstWord = groupWords[0];
@@ -1837,6 +1983,8 @@
         
         // 编辑现有组的函数
         async function editMarkGroup(groupId) {
+            console.log('编辑标记组:', groupId);
+            console.log('查找的词汇:', Object.keys(markGroups).filter(w => markGroups[w] === groupId));
             await showEditModal(groupId, false);
         }
         
@@ -1951,7 +2099,7 @@
                 }
             });
             
-            // 添加新词
+            // 添加新词并设置注释和图片
             newWords.forEach(word => {
                 const trimmedWord = word.trim();
                 if (trimmedWord && !markWords.includes(trimmedWord)) {
@@ -2007,7 +2155,7 @@
                 return;
             }
             
-            // 添加新词
+            // 添加新词并设置注释和图片
             newWords.forEach(word => {
                 const trimmedWord = word.trim();
                 if (trimmedWord) {
@@ -2968,11 +3116,11 @@
                 
                 // 导入新数据
                 for (const group of importData.markGroups) {
-                    await dataStore.addMarkGroup(group.name, group.words);
+                    await dataStore.addMarkGroup(group.name, group.words, group.note, group.imageData);
                 }
                 
                 for (const mark of importData.marks) {
-                    await dataStore.addMark(mark.word, mark.note, mark.imageData, mark.groupId);
+                    await dataStore.addMark(mark.word, mark.groupId);
                 }
                 
                 // 重新加载标记数据

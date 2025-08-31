@@ -134,7 +134,7 @@ class ReaderDataStore {
     }
 
     // 添加标记
-    async addMark(word, note = '', imageData = null, groupId = null) {
+    async addMark(word, groupId = null) {
         if (!this.db) await this.init();
         
         return new Promise((resolve, reject) => {
@@ -142,8 +142,6 @@ class ReaderDataStore {
             const store = transaction.objectStore('marks');
             const mark = {
                 word,
-                note,
-                imageData,
                 groupId,
                 timestamp: Date.now()
             };
@@ -202,7 +200,7 @@ class ReaderDataStore {
     }
 
     // 添加标记组
-    async addMarkGroup(name, words = []) {
+    async addMarkGroup(name, words = [], note = '', imageData = null) {
         if (!this.db) await this.init();
         
         return new Promise((resolve, reject) => {
@@ -211,6 +209,8 @@ class ReaderDataStore {
             const group = {
                 name,
                 words,
+                note,
+                imageData,
                 timestamp: Date.now()
             };
             const request = store.add(group);
