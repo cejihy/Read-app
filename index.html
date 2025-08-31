@@ -983,6 +983,8 @@
                         <div class="control-group">
                             <input type="file" id="import-marks-input" accept=".json" style="display: none;">
                             <button class="control-btn" id="import-marks-btn" style="background: #17a2b8; color: white; border: 1px solid #17a2b8;">导入</button>
+                            <!-- 移动设备备用文件输入 -->
+                            <input type="file" id="mobile-import-input" accept=".json" style="display: none;">
                         </div>
                     </div>
                     <div style="margin-top: 8px; font-size: 12px; color: #666;">
@@ -2325,106 +2327,142 @@
                 }
                 
                 const text = textNode.textContent;
-                let hasChanges = false;
+                
+                // 收集所有匹配项，按位置排序
+                const matches = [];
+                wordData.forEach(({ word, regex, note, image }) => {
+                    if (!text.toLowerCase().includes(word.toLowerCase())) return;
+                    
+                    regex.lastIndex = 0; // 重置正则表达式状态
+                    let match;
+                    while ((match = regex.exec(text)) !== null) {
+                        matches.push({
+                            start: match.index,
+                            end: match.index + match[1].length,
+                            word: match[1],
+                            note,
+                            image
+                        });
+                    }
+                });
+                
+                // 如果没有匹配项，跳过
+                if (matches.length === 0) return;
+                
+                // 按位置排序，处理重叠匹配
+                matches.sort((a, b) => a.start - b.start);
+                
+                // 合并重叠的匹配项
+                const mergedMatches = [];
+                for (const match of matches) {
+                    if (mergedMatches.length === 0) {
+                        mergedMatches.push(match);
+                        continue;
+                    }
+                    
+                    const lastMatch = mergedMatches[mergedMatches.length - 1];
+                    
+                    // 如果当前匹配与上一个重叠，选择更长的匹配
+                    if (match.start <= lastMatch.end) {
+                        if (match.end - match.start > lastMatch.end - lastMatch.start) {
+                            mergedMatches[mergedMatches.length - 1] = match;
+                        }
+                    } else {
+                        mergedMatches.push(match);
+                    }
+                }
+                
+                // 构建替换内容
                 const fragment = doc.createDocumentFragment();
                 let lastIndex = 0;
                 
-                // 检查所有标记词
-                for (const { word, regex, note, image } of wordData) {
-                    if (!text.toLowerCase().includes(word.toLowerCase())) continue;
-                    
-                    hasChanges = true;
-                    regex.lastIndex = 0; // 重置正则表达式状态
-                    let match;
-                    
-                    while ((match = regex.exec(text)) !== null) {
-                        // 添加匹配前的文本
-                        if (match.index > lastIndex) {
-                            fragment.appendChild(doc.createTextNode(text.slice(lastIndex, match.index)));
-                        }
-                        
-                        // 添加匹配的文本
-                        fragment.appendChild(doc.createTextNode(match[1]));
-                        
-                        // 添加标记内容
-                        if (note) {
-                            const markNote = doc.createElement('span');
-                            markNote.className = 'mark-note';
-                            markNote.textContent = note;
-                            markNote.style.cssText = `
-                                margin-left: 4px;
-                                font-size: 0.9em;
-                                color: #666;
-                                cursor: pointer;
-                                padding: 1px 3px;
-                                border-radius: 2px;
-                                transition: background-color 0.2s;
-                            `;
-                            
-                            // 点击注释打开编辑界面
-                            markNote.onclick = () => {
-                                const groupId = markGroups[word];
-                                if (groupId) {
-                                    editMarkGroup(groupId);
-                                }
-                            };
-                            
-                            markNote.onmouseenter = function() {
-                                this.style.backgroundColor = '#f0f0f0';
-                            };
-                            
-                            markNote.onmouseleave = function() {
-                                this.style.backgroundColor = 'transparent';
-                            };
-                            
-                            fragment.appendChild(markNote);
-                        }
-                        
-                        if (image) {
-                            const markImage = doc.createElement('img');
-                            markImage.className = 'mark-image';
-                            markImage.src = image;
-                            markImage.style.cssText = `
-                                height: 1.2em;
-                                width: 1.2em;
-                                margin-left: 4px;
-                                border-radius: 2px;
-                                border: 1px solid #ddd;
-                                vertical-align: middle;
-                                cursor: pointer;
-                                transition: opacity 0.2s;
-                                object-fit: cover;
-                            `;
-                            markImage.onerror = () => {
-                                console.error('图片加载失败:', image.substring(0, 50) + '...');
-                            };
-                            // 点击图片打开编辑界面
-                            markImage.onclick = () => {
-                                const groupId = markGroups[word];
-                                if (groupId) {
-                                    editMarkGroup(groupId);
-                                }
-                            };
-                            markImage.onmouseenter = function() {
-                                this.style.opacity = '0.8';
-                            };
-                            markImage.onmouseleave = function() {
-                                this.style.opacity = '1';
-                            };
-                            fragment.appendChild(markImage);
-                        }
-                        
-                        lastIndex = regex.lastIndex;
+                mergedMatches.forEach(match => {
+                    // 添加匹配前的文本
+                    if (match.start > lastIndex) {
+                        fragment.appendChild(doc.createTextNode(text.slice(lastIndex, match.start)));
                     }
-                }
+                    
+                    // 添加匹配的文本
+                    fragment.appendChild(doc.createTextNode(match.word));
+                    
+                    // 添加标记内容
+                    if (match.note) {
+                        const markNote = doc.createElement('span');
+                        markNote.className = 'mark-note';
+                        markNote.textContent = match.note;
+                        markNote.style.cssText = `
+                            margin-left: 4px;
+                            font-size: 0.9em;
+                            color: #666;
+                            cursor: pointer;
+                            padding: 1px 3px;
+                            border-radius: 2px;
+                            transition: background-color 0.2s;
+                        `;
+                        
+                        // 点击注释打开编辑界面
+                        markNote.onclick = () => {
+                            const groupId = markGroups[match.word];
+                            if (groupId) {
+                                editMarkGroup(groupId);
+                            }
+                        };
+                        
+                        markNote.onmouseenter = function() {
+                            this.style.backgroundColor = '#f0f0f0';
+                        };
+                        
+                        markNote.onmouseleave = function() {
+                            this.style.backgroundColor = 'transparent';
+                        };
+                        
+                        fragment.appendChild(markNote);
+                    }
+                    
+                    if (match.image) {
+                        const markImage = doc.createElement('img');
+                        markImage.className = 'mark-image';
+                        markImage.src = match.image;
+                        markImage.style.cssText = `
+                            height: 1.2em;
+                            width: 1.2em;
+                            margin-left: 4px;
+                            border-radius: 2px;
+                            border: 1px solid #ddd;
+                            vertical-align: middle;
+                            cursor: pointer;
+                            transition: opacity 0.2s;
+                            object-fit: cover;
+                        `;
+                        markImage.onerror = () => {
+                            console.error('图片加载失败:', match.image.substring(0, 50) + '...');
+                        };
+                        // 点击图片打开编辑界面
+                        markImage.onclick = () => {
+                            const groupId = markGroups[match.word];
+                            if (groupId) {
+                                editMarkGroup(groupId);
+                            }
+                        };
+                        markImage.onmouseenter = function() {
+                            this.style.opacity = '0.8';
+                        };
+                        markImage.onmouseleave = function() {
+                            this.style.opacity = '1';
+                        };
+                        fragment.appendChild(markImage);
+                    }
+                    
+                    lastIndex = match.end;
+                });
                 
                 // 添加剩余文本
                 if (lastIndex < text.length) {
                     fragment.appendChild(doc.createTextNode(text.slice(lastIndex)));
                 }
                 
-                // 只在有变化时替换节点
-                if (hasChanges && fragment.childNodes.length > 0) {
+                // 替换节点
+                if (fragment.childNodes.length > 0) {
                     textNode.parentNode.replaceChild(fragment, textNode);
                 }
             });
@@ -2763,13 +2801,108 @@
             
             // 标记导入导出功能
             addButtonEvent('export-marks-btn', exportMarksData);
-            addButtonEvent('import-marks-btn', () => {
-                document.getElementById('import-marks-input').click();
-            });
             addButtonEvent('clear-marks-btn', clearAllMarks);
             
-            // 导入文件监听
-            document.getElementById('import-marks-input').addEventListener('change', importMarksData);
+            // 导入文件监听 - 增强移动设备支持
+            const fileInput = document.getElementById('import-marks-input');
+            fileInput.addEventListener('change', importMarksData);
+            
+            // 移动设备特殊处理
+            fileInput.addEventListener('click', (e) => {
+                // 确保在移动设备上也能正常工作
+                console.log('文件输入被点击');
+            });
+            
+            // 添加触摸事件支持
+            fileInput.addEventListener('touchstart', (e) => {
+                console.log('文件输入触摸开始');
+            });
+            
+            // 简化的文件选择函数
+            function triggerFileSelect() {
+                console.log('触发文件选择...');
+                console.log('用户代理:', navigator.userAgent);
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                console.log('是否移动设备:', isMobile);
+                
+                // 根据设备类型选择不同的文件输入
+                const fileInput = isMobile ? 
+                    document.getElementById('mobile-import-input') : 
+                    document.getElementById('import-marks-input');
+                
+                console.log('使用的文件输入元素:', fileInput);
+                
+                if (!fileInput) {
+                    console.error('找不到文件输入元素');
+                    alert('文件输入元素不存在');
+                    return;
+                }
+                
+                // 重置文件输入
+                fileInput.value = '';
+                
+                // 确保文件输入可见且可交互
+                fileInput.style.display = 'block';
+                fileInput.style.position = 'absolute';
+                fileInput.style.left = '0';
+                fileInput.style.top = '0';
+                fileInput.style.width = '100%';
+                fileInput.style.height = '100%';
+                fileInput.style.opacity = '0';
+                fileInput.style.pointerEvents = 'auto';
+                fileInput.style.zIndex = '9999';
+                
+                // 添加change事件监听器
+                const handleFileChange = (e) => {
+                    console.log('文件选择change事件触发');
+                    if (e.target.files[0]) {
+                        importMarksData(e);
+                    }
+                    // 恢复文件输入样式
+                    fileInput.style.display = 'none';
+                    fileInput.removeEventListener('change', handleFileChange);
+                };
+                
+                fileInput.addEventListener('change', handleFileChange);
+                
+                // 触发文件选择
+                try {
+                    console.log('尝试触发文件选择');
+                    fileInput.click();
+                    console.log('文件选择已触发');
+                } catch (e) {
+                    console.error('文件选择失败:', e);
+                    alert('文件选择失败，请尝试刷新页面');
+                }
+            }
+            
+            // 导入按钮事件绑定
+            const importBtn = document.getElementById('import-marks-btn');
+            if (importBtn) {
+                // 移除所有现有事件监听器
+                const newBtn = importBtn.cloneNode(true);
+                importBtn.parentNode.replaceChild(newBtn, importBtn);
+                
+                // 添加新的事件监听器
+                newBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('导入按钮被点击');
+                    triggerFileSelect();
+                });
+                
+                // 移动设备触摸事件
+                newBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('导入按钮被触摸');
+                    triggerFileSelect();
+                });
+                
+                console.log('导入按钮事件已设置');
+            } else {
+                console.error('找不到导入按钮');
+            }
         }
 
         function updateFontButtons() {
