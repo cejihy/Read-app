@@ -80,13 +80,30 @@
 
                  .upload-btn {
              background: #f8f9fa;
-             color: #6c757d;
              border: 1px solid #dee2e6;
              padding: 8px 16px;
-             border-radius: 8px;
-             font-size: 14px;
+             border-radius: 6px;
              cursor: pointer;
+             color: #6c757d;
+             font-size: 14px;
              font-weight: 500;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             transition: all 0.15s ease;
+             user-select: none;
+             touch-action: manipulation;
+             -webkit-tap-highlight-color: transparent;
+         }
+         
+         .upload-btn:hover {
+             background: #e9ecef;
+             border-color: #adb5bd;
+         }
+         
+         .upload-btn:active {
+             background: #e9ecef;
+             transform: scale(0.95);
          }
          
                          .mark-btn {
@@ -295,6 +312,206 @@
 
         .unified-panel.show {
             transform: translateY(0);
+        }
+
+        /* 书架面板样式 */
+        .bookshelf-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: white;
+            transition: transform 0.3s ease;
+            z-index: 1001;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            transform: translateY(100%);
+            padding-top: env(safe-area-inset-top);
+        }
+
+        .bookshelf-panel::-webkit-scrollbar {
+            display: none;
+        }
+
+        .bookshelf-panel.show {
+            transform: translateY(0);
+        }
+
+        .bookshelf-content {
+            padding: 20px;
+        }
+
+        .bookshelf-stats {
+            display: flex;
+            justify-content: space-around;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .bookshelf-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .bookshelf-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 16px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background: white;
+            color: #333;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .bookshelf-btn:hover {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+        }
+
+        .bookshelf-btn.danger {
+            background: #dc3545;
+            color: white;
+            border-color: #dc3545;
+        }
+
+        .bookshelf-btn.danger:hover {
+            background: #c82333;
+            border-color: #bd2130;
+        }
+
+        .btn-icon {
+            font-size: 16px;
+        }
+
+        .books-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .book-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+
+        .book-item:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        .book-item.current {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .book-icon {
+            font-size: 24px;
+            margin-right: 12px;
+            color: #6c757d;
+        }
+
+        .book-info {
+            flex: 1;
+        }
+
+        .book-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .book-meta {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .book-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .book-action-btn {
+            padding: 6px 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            background: white;
+            color: #666;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .book-action-btn:hover {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+        }
+
+        .book-action-btn.danger {
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .book-action-btn.danger:hover {
+            background: #dc3545;
+            color: white;
+        }
+
+        .empty-bookshelf {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-text {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .empty-subtext {
+            font-size: 14px;
         }
 
         .unified-header {
@@ -861,12 +1078,12 @@
     </style>
 </head>
 <body>
-    <!-- 顶部栏 -->
+            <!-- 顶部栏 -->
     <div class="header">
                  <div class="header-left">
              <input type="file" id="file-input" class="file-input" accept=".epub" />
-             <button class="upload-btn" onclick="document.getElementById('file-input').click()">
-                 选择文件
+             <button class="upload-btn" onclick="showBookshelf()">
+                 📚 我的书架
              </button>
              
          </div>
@@ -1009,42 +1226,7 @@
                 </div>
             </div>
 
-            <div class="settings-section">
-                <div class="settings-section-title">书籍管理</div>
-                <div class="book-settings">
-                    <div class="setting-row">
-                        <span class="setting-label">书籍数据</span>
-                        <div class="control-group">
-                            <span id="books-storage-info" style="color: #666; font-size: 14px;">计算中...</span>
-                        </div>
-                    </div>
-                    <div class="setting-row" style="margin-top: 16px;">
-                        <span class="setting-label">当前书籍</span>
-                        <div class="control-group">
-                            <span id="current-book-name" style="color: #666; font-size: 14px;">未加载书籍</span>
-                        </div>
-                    </div>
-                    <div class="setting-row" style="margin-top: 16px;">
-                        <span class="setting-label">删除当前书籍</span>
-                        <div class="control-group">
-                            <button class="control-btn" id="delete-current-book-btn" style="background: #dc3545; color: white; border: 1px solid #dc3545;">删除</button>
-                        </div>
-                    </div>
-                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
-                        删除当前正在阅读的书籍（不可恢复）
-                    </div>
-                    
-                    <div class="setting-row" style="margin-top: 16px;">
-                        <span class="setting-label">清空所有书籍</span>
-                        <div class="control-group">
-                            <button class="control-btn" id="clear-all-books-btn" style="background: #dc3545; color: white; border: 1px solid #dc3545;">清空</button>
-                        </div>
-                    </div>
-                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
-                        删除所有已保存的书籍（不可恢复）
-                    </div>
-                </div>
-            </div>
+
 
             <div class="settings-section">
                 <div class="settings-section-title">存储信息</div>
@@ -1078,6 +1260,48 @@
 
         </div>
 
+        <!-- 书架面板 -->
+        <div class="bookshelf-panel" id="bookshelf-panel">
+            <div class="unified-header">
+                <div class="unified-title">我的书架</div>
+                <button class="unified-close" id="bookshelf-close">×</button>
+            </div>
+            
+            <div class="bookshelf-content">
+                <div class="bookshelf-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">总书籍</span>
+                        <span class="stat-value" id="total-books-count">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">总大小</span>
+                        <span class="stat-value" id="total-books-size">0 B</span>
+                    </div>
+                </div>
+                
+                <div class="bookshelf-controls">
+                    <button class="bookshelf-btn" id="add-book-btn">
+                        <span class="btn-icon">📖</span>
+                        <span class="btn-text">添加书籍</span>
+                    </button>
+                    <button class="bookshelf-btn danger" id="clear-all-books-btn">
+                        <span class="btn-icon">🗑️</span>
+                        <span class="btn-text">清空书架</span>
+                    </button>
+                </div>
+                
+                <div class="books-list" id="books-list">
+                    <!-- 书籍列表将在这里动态生成 -->
+                </div>
+                
+                <div class="empty-bookshelf" id="empty-bookshelf" style="display: none;">
+                    <div class="empty-icon">📚</div>
+                    <div class="empty-text">书架空空如也</div>
+                    <div class="empty-subtext">点击"添加书籍"开始阅读</div>
+                </div>
+            </div>
+        </div>
+
         
 
 
@@ -1089,6 +1313,7 @@
                 <button class="nav-btn" id="prev-btn" disabled>‹</button>
                 <button class="nav-btn" id="next-btn" disabled>›</button>
             </div>
+
             <button class="settings-btn" id="settings-btn">⚙</button>
             <button class="menu-btn" id="menu-btn">☰</button>
         </div>
@@ -1152,10 +1377,11 @@
 
         document.getElementById('overlay').addEventListener('click', hideAllPanels);
 
-                 function hideAllPanels() {
-             hideUnifiedPanel();
-             hideSettings();
-         }
+                         function hideAllPanels() {
+            hideUnifiedPanel();
+            hideSettings();
+            hideBookshelf();
+        }
 
         function showPanel(panelId) {
             hideAllPanels();
@@ -1171,6 +1397,11 @@
         addButtonEvent('settings-btn', showSettings);
         addButtonEvent('settings-close', hideSettings);
 
+        // 书架按钮事件
+        addButtonEvent('bookshelf-close', hideBookshelf);
+        addButtonEvent('add-book-btn', () => document.getElementById('file-input').click());
+        addButtonEvent('clear-all-books-btn', clearAllBooks);
+
 
 
 
@@ -1184,11 +1415,7 @@
                 currentBookFileName = file.name;
                 console.log('设置当前文件名:', currentBookFileName);
                 
-                // 更新设置面板中的当前书籍名称显示
-                const currentBookNameElement = document.getElementById('current-book-name');
-                if (currentBookNameElement) {
-                    currentBookNameElement.textContent = currentBookFileName;
-                }
+
                 
                                  // 保存书籍到数据库（除非跳过保存）
                  if (!skipSave) {
@@ -1262,6 +1489,9 @@
                 
                 // 更新存储信息显示
                 await updateStorageInfo();
+                
+                // 更新书架显示
+                await updateBookshelf();
                  
                  
                 
@@ -1748,6 +1978,18 @@
 
         function hideSettings() {
             document.getElementById('settings-panel').classList.remove('show');
+            document.getElementById('overlay').classList.remove('show');
+        }
+
+        // 显示书架面板
+        function showBookshelf() {
+            showPanel('bookshelf-panel');
+            updateBookshelf();
+        }
+
+        // 隐藏书架面板
+        function hideBookshelf() {
+            document.getElementById('bookshelf-panel').classList.remove('show');
             document.getElementById('overlay').classList.remove('show');
         }
 
@@ -2867,9 +3109,7 @@
             addButtonEvent('export-marks-btn', exportMarksData);
             addButtonEvent('clear-marks-btn', clearAllMarks);
             
-            // 书籍管理功能
-            addButtonEvent('delete-current-book-btn', deleteCurrentBook);
-            addButtonEvent('clear-all-books-btn', clearAllBooks);
+
             
             // 导入文件监听 - 增强移动设备支持
             const fileInput = document.getElementById('import-marks-input');
@@ -3142,6 +3382,9 @@
                 // 更新存储信息显示
                 await updateStorageInfo();
                 
+                // 更新书架显示
+                await updateBookshelf();
+                
                 console.log('应用初始化完成');
             } catch (error) {
                 console.error('应用初始化失败:', error);
@@ -3156,11 +3399,6 @@
                 
                 if (lastReadBook) {
                     console.log('找到最近阅读的书籍:', lastReadBook.name);
-                    // 更新设置面板中的当前书籍名称显示
-                    const currentBookNameElement = document.getElementById('current-book-name');
-                    if (currentBookNameElement) {
-                        currentBookNameElement.textContent = lastReadBook.name;
-                    }
                     // 直接自动加载上次的书籍
                     await autoLoadLastBook();
                 } else {
@@ -3223,11 +3461,7 @@
                 // 加载书籍（跳过保存，因为书籍已经在数据库中）
                 await loadBook(bookFile, true);
                 
-                // 更新设置面板中的当前书籍名称显示
-                const currentBookNameElement = document.getElementById('current-book-name');
-                if (currentBookNameElement) {
-                    currentBookNameElement.textContent = lastReadBook.name;
-                }
+
                 
             } catch (error) {
                 console.error('自动加载书籍失败:', error);
@@ -3239,10 +3473,10 @@
          function showDefaultEmptyState() {
              const emptyState = document.getElementById('empty-state');
              emptyState.innerHTML = `
-                 <div class="icon">📖</div>
-                 <div class="text">选择EPUB文件开始阅读</div>
-                 <div class="subtext">支持EPUB格式电子书</div>
-                 <button class="upload-btn" style="margin-top: 16px;" onclick="document.getElementById('file-input').click()">选择书籍</button>
+                                 <div class="icon">📚</div>
+                <div class="text">欢迎使用电子书阅读器</div>
+                <div class="subtext">打开书架开始阅读</div>
+                <button class="upload-btn" style="margin-top: 16px;" onclick="showBookshelf()">📚 打开书架</button>
              `;
          }
          
@@ -3488,7 +3722,7 @@
                     图片详情: imageSizes
                 });
                 
-                alert(`标记数据导出成功！\n总大小: ${totalSize}KB\n图片: ${imageCount}张 (${imageSizeKB}KB)\n数据: ${dataSizeKB}KB`);
+                console.log(`标记数据导出成功！总大小: ${totalSize}KB，图片: ${imageCount}张 (${imageSizeKB}KB)，数据: ${dataSizeKB}KB`);
                 
             } catch (error) {
                 console.error('导出标记数据失败:', error);
@@ -3544,7 +3778,6 @@
                 await updateStorageInfo();
                 
                 console.log('标记数据导入成功');
-                alert('标记数据导入成功！');
                 
             } catch (error) {
                 console.error('导入标记数据失败:', error);
@@ -3564,6 +3797,175 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
+        // 更新书架显示
+        async function updateBookshelf() {
+            try {
+                console.log('开始更新书架...');
+                
+                // 确保数据库已初始化
+                if (!dataStore.db) {
+                    await dataStore.init();
+                }
+                
+                // 获取所有书籍
+                const transaction = dataStore.db.transaction(['books'], 'readonly');
+                const store = transaction.objectStore('books');
+                const request = store.getAll();
+                
+                request.onsuccess = () => {
+                    const books = request.result || [];
+                    console.log('获取到书籍:', books.length, '本');
+                    
+                    // 更新统计信息
+                    const totalBooksCount = document.getElementById('total-books-count');
+                    const totalBooksSize = document.getElementById('total-books-size');
+                    const booksList = document.getElementById('books-list');
+                    const emptyBookshelf = document.getElementById('empty-bookshelf');
+                    
+                    if (books.length === 0) {
+                        // 显示空书架
+                        if (totalBooksCount) totalBooksCount.textContent = '0';
+                        if (totalBooksSize) totalBooksSize.textContent = '0 B';
+                        if (booksList) booksList.innerHTML = '';
+                        if (emptyBookshelf) emptyBookshelf.style.display = 'block';
+                    } else {
+                        // 显示书籍列表
+                        if (emptyBookshelf) emptyBookshelf.style.display = 'none';
+                        
+                        // 计算总大小
+                        let totalSize = 0;
+                        books.forEach(book => {
+                            if (book.fileData) {
+                                totalSize += book.fileData.byteLength || 0;
+                            }
+                        });
+                        
+                        // 更新统计
+                        if (totalBooksCount) totalBooksCount.textContent = books.length;
+                        if (totalBooksSize) totalBooksSize.textContent = formatFileSize(totalSize);
+                        
+                        // 生成书籍列表
+                        if (booksList) {
+                            booksList.innerHTML = books.map(book => {
+                                const isCurrent = book.name === currentBookFileName;
+                                const bookSize = book.fileData ? formatFileSize(book.fileData.byteLength) : '未知大小';
+                                const lastRead = book.lastRead ? new Date(book.lastRead).toLocaleDateString() : '未阅读';
+                                
+                                return `
+                                    <div class="book-item ${isCurrent ? 'current' : ''}">
+                                        <div class="book-icon">📖</div>
+                                        <div class="book-info">
+                                            <div class="book-title">${book.name}</div>
+                                            <div class="book-meta">${bookSize} • 最后阅读: ${lastRead}</div>
+                                        </div>
+                                        <div class="book-actions">
+                                            <button class="book-action-btn" onclick="openBook('${book.name}')">打开</button>
+                                            <button class="book-action-btn danger" onclick="deleteBook('${book.name}')">删除</button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+                        }
+                    }
+                };
+                
+                request.onerror = () => {
+                    console.error('获取书籍列表失败:', request.error);
+                };
+                
+            } catch (error) {
+                console.error('更新书架失败:', error);
+            }
+        }
+
+        // 打开书籍
+        async function openBook(bookName) {
+            try {
+                console.log('打开书籍:', bookName);
+                
+                // 获取书籍数据
+                const book = await dataStore.getBook(bookName);
+                if (!book) {
+                    alert('书籍不存在');
+                    return;
+                }
+                
+                // 检查书籍数据是否存在
+                let bookData = book.data;
+                if (!bookData && book.fileData) {
+                    // 处理旧的数据结构（ArrayBuffer）
+                    console.log('检测到旧的数据结构，转换为base64');
+                    const arrayBuffer = book.fileData;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+                    bookData = 'data:application/epub+zip;base64,' + btoa(binaryString);
+                }
+                
+                if (!bookData) {
+                    alert('书籍数据不存在');
+                    return;
+                }
+                
+                // 将 base64 数据转换为 File 对象
+                const response = await fetch(bookData);
+                const blob = await response.blob();
+                const bookFile = new File([blob], book.name, {
+                    type: 'application/epub+zip',
+                    lastModified: book.lastModified
+                });
+                
+                // 加载书籍（跳过保存，因为书籍已经在数据库中）
+                await loadBook(bookFile, true);
+                
+                // 隐藏书架面板
+                hideBookshelf();
+                
+            } catch (error) {
+                console.error('打开书籍失败:', error);
+                alert('打开书籍失败：' + error.message);
+            }
+        }
+
+        // 删除书籍（从书架）
+        async function deleteBook(bookName) {
+            if (!confirm(`确定要删除书籍"${bookName}"吗？此操作不可恢复！`)) {
+                return;
+            }
+            
+            try {
+                console.log('删除书籍:', bookName);
+                
+                // 删除书籍
+                await dataStore.deleteBook(bookName);
+                
+                // 如果删除的是当前书籍，清空状态
+                if (bookName === currentBookFileName) {
+                    currentBookFileName = null;
+                    if (book) {
+                        book = null;
+                    }
+                    if (rendition) {
+                        rendition = null;
+                    }
+                    
+                    // 清空阅读器
+                    const viewer = document.getElementById('viewer');
+                    if (viewer) {
+                        viewer.innerHTML = '<div class="empty-state">请选择书籍文件</div>';
+                    }
+                }
+                
+                // 更新书架显示
+                await updateBookshelf();
+                
+                console.log('书籍删除成功');
+                
+            } catch (error) {
+                console.error('删除书籍失败:', error);
+                alert('删除失败：' + error.message);
+            }
+        }
+
         // 更新存储信息显示
         async function updateStorageInfo() {
             try {
@@ -3578,13 +3980,7 @@
                     marksElement.textContent = `${marksTotalCount} 项，${formatFileSize(marksTotalSize)}`;
                 }
                 
-                // 更新书籍数据信息
-                const booksTotalSize = (storageInfo.books?.size || 0) + (storageInfo.bookmarks?.size || 0);
-                const booksTotalCount = (storageInfo.books?.count || 0) + (storageInfo.bookmarks?.count || 0);
-                const booksElement = document.getElementById('books-storage-info');
-                if (booksElement) {
-                    booksElement.textContent = `${booksTotalCount} 项，${formatFileSize(booksTotalSize)}`;
-                }
+
                 
                 // 更新总存储信息
                 const totalElement = document.getElementById('total-storage-info');
@@ -3597,11 +3993,9 @@
                 console.error('更新存储信息失败:', error);
                 // 显示错误状态
                 const marksElement = document.getElementById('marks-storage-info');
-                const booksElement = document.getElementById('books-storage-info');
                 const totalElement = document.getElementById('total-storage-info');
                 
                 if (marksElement) marksElement.textContent = '获取失败';
-                if (booksElement) booksElement.textContent = '获取失败';
                 if (totalElement) totalElement.textContent = '获取失败';
             }
         }
@@ -3637,7 +4031,6 @@
                 await updateStorageInfo();
                 
                 console.log('所有标记数据已清空');
-                alert('所有标记数据已清空！');
                 
             } catch (error) {
                 console.error('清空标记数据失败:', error);
@@ -3645,68 +4038,7 @@
             }
         }
 
-        // 删除当前书籍
-        async function deleteCurrentBook() {
-            console.log('开始删除当前书籍:', currentBookFileName);
-            
-            if (!currentBookFileName) {
-                alert('当前没有加载的书籍');
-                return;
-            }
-            
-            if (!confirm(`确定要删除书籍"${currentBookFileName}"吗？此操作不可恢复！`)) {
-                return;
-            }
-            
-            try {
-                console.log('确认删除，开始执行删除操作');
-                
-                // 确保数据库已初始化
-                if (!dataStore.db) {
-                    console.log('数据库未初始化，正在初始化...');
-                    await dataStore.init();
-                }
-                
-                console.log('调用dataStore.deleteBook...');
-                // 删除书籍
-                await dataStore.deleteBook(currentBookFileName);
-                console.log('dataStore.deleteBook执行完成');
-                
-                // 清空当前书籍状态
-                console.log('清空书籍状态...');
-                currentBookFileName = null;
-                if (book) {
-                    book = null;
-                }
-                if (rendition) {
-                    rendition = null;
-                }
-                
-                // 更新界面显示
-                console.log('更新界面显示...');
-                const currentBookNameElement = document.getElementById('current-book-name');
-                if (currentBookNameElement) {
-                    currentBookNameElement.textContent = '未加载书籍';
-                }
-                
-                // 清空阅读器
-                const viewer = document.getElementById('viewer');
-                if (viewer) {
-                    viewer.innerHTML = '<div class="empty-state">请选择书籍文件</div>';
-                }
-                
-                // 更新存储信息显示
-                await updateStorageInfo();
-                
-                console.log('当前书籍删除成功');
-                alert('书籍删除成功！');
-                
-            } catch (error) {
-                console.error('删除当前书籍失败:', error);
-                console.error('错误堆栈:', error.stack);
-                alert('删除失败：' + error.message);
-            }
-        }
+
 
         // 清空所有书籍
         async function clearAllBooks() {
@@ -3748,10 +4080,6 @@
                     
                     // 更新界面显示
                     console.log('更新界面显示...');
-                    const currentBookNameElement = document.getElementById('current-book-name');
-                    if (currentBookNameElement) {
-                        currentBookNameElement.textContent = '未加载书籍';
-                    }
                     
                     // 清空阅读器
                     const viewer = document.getElementById('viewer');
@@ -3762,8 +4090,10 @@
                     // 更新存储信息显示
                     await updateStorageInfo();
                     
+                    // 更新书架显示
+                    await updateBookshelf();
+                    
                     console.log('所有书籍删除成功');
-                    alert('所有书籍删除成功！');
                 };
                 
                 request.onerror = () => {
