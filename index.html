@@ -1598,22 +1598,24 @@
             const editContent = document.createElement('div');
             editContent.style.cssText = `
                 background: white;
-                padding: 24px;
+                padding: 20px;
                 border-radius: 12px;
                 width: 90%;
-                max-width: 400px;
-                max-height: 80vh;
+                max-width: 450px;
+                max-height: 85vh;
                 overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             `;
             
             editContent.innerHTML = `
                 <h3 style="margin: 0 0 20px 0; color: #333;">${modalTitle}</h3>
                 
                 <!-- 图片区域 - 主要元素 -->
-                <div style="margin-bottom: 24px; text-align: center;">
+                <div style="margin-bottom: 20px; text-align: center;">
                     <div id="edit-image-preview" style="
-                        margin-bottom: 16px;
-                        min-height: 200px;
+                        margin-bottom: 12px;
+                        min-height: 180px;
+                        max-height: 250px;
                         display: flex;
                         align-items: center;
                         justify-content: center;
@@ -1621,25 +1623,26 @@
                         border: 2px dashed #dee2e6;
                         border-radius: 12px;
                         transition: all 0.3s ease;
+                        overflow: hidden;
                     ">
                         ${currentImage ? 
-                            `<img src="${currentImage}" style="max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer;" onclick="showLargeImage('${currentImage}')" title="点击查看大图">` : 
-                            `<div style="color: #999; font-size: 16px;">
-                                <div style="font-size: 48px; margin-bottom: 8px;">📷</div>
+                            `<img src="${currentImage}" style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer; object-fit: contain;" onclick="showLargeImage('${currentImage}')" title="点击查看大图">` : 
+                            `<div style="color: #999; font-size: 14px;">
+                                <div style="font-size: 40px; margin-bottom: 6px;">📷</div>
                                 <div>点击下方按钮选择图片</div>
                             </div>`
                         }
                     </div>
                     
-                    <div style="display: flex; gap: 8px; justify-content: center;">
+                                         <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
                         <input type="file" id="edit-image-input" accept="image/*" style="display: none;">
                         <button onclick="document.getElementById('edit-image-input').click()" style="
                             background: #007bff;
                             color: white;
                             border: none;
                             border-radius: 8px;
-                            padding: 10px 16px;
-                            font-size: 14px;
+                            padding: 8px 14px;
+                            font-size: 13px;
                             cursor: pointer;
                             transition: all 0.15s ease;
                             user-select: none;
@@ -1651,8 +1654,8 @@
                             color: white;
                             border: none;
                             border-radius: 8px;
-                            padding: 10px 16px;
-                            font-size: 14px;
+                            padding: 8px 14px;
+                            font-size: 13px;
                             cursor: pointer;
                             transition: all 0.15s ease;
                             user-select: none;
@@ -1663,11 +1666,11 @@
                 </div>
                 
                 <!-- 标记词区域 -->
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 8px; color: #555; font-weight: 500;">标记词</label>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 6px; color: #555; font-weight: 500; font-size: 14px;">标记词</label>
                     <input type="text" id="edit-words-input" value="${groupWords.join('、')}" style="
                         width: 100%;
-                        padding: 12px;
+                        padding: 10px;
                         border: 1px solid #ddd;
                         border-radius: 8px;
                         font-size: 14px;
@@ -1676,28 +1679,29 @@
                 </div>
                 
                 <!-- 标记内容区域 -->
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; color: #555; font-weight: 500;">标记内容</label>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 6px; color: #555; font-weight: 500; font-size: 14px;">标记内容</label>
                     <textarea id="edit-note-input" style="
                         width: 100%;
-                        padding: 12px;
+                        padding: 10px;
                         border: 1px solid #ddd;
                         border-radius: 8px;
                         font-size: 14px;
                         box-sizing: border-box;
-                        min-height: 80px;
+                        min-height: 60px;
+                        max-height: 120px;
                         resize: vertical;
                     " placeholder="输入标记内容（可选）">${currentNote}</textarea>
                 </div>
                 
-                                 <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                                 <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
                      ${!isNewGroup ? `<button onclick="deleteEditGroup('${groupId}')" style="
                          background: #f8f9fa;
                          color: #6c757d;
                          border: 1px solid #dee2e6;
                          border-radius: 6px;
-                         padding: 10px 20px;
-                         font-size: 14px;
+                         padding: 8px 16px;
+                         font-size: 13px;
                          cursor: pointer;
                          transition: all 0.15s ease;
                          user-select: none;
@@ -1709,8 +1713,8 @@
                          color: #6c757d;
                          border: 1px solid #dee2e6;
                          border-radius: 6px;
-                         padding: 10px 20px;
-                         font-size: 14px;
+                         padding: 8px 16px;
+                         font-size: 13px;
                          cursor: pointer;
                          transition: all 0.15s ease;
                          user-select: none;
@@ -1718,18 +1722,18 @@
                          -webkit-tap-highlight-color: transparent;
                      " onmouseover="this.style.backgroundColor='#e9ecef'" onmouseout="this.style.backgroundColor='#f8f9fa'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">取消</button>
                      <button onclick="${isNewGroup ? 'saveNewGroup' : 'saveEditGroup'}('${groupId}')" style="
-                         background: #f8f9fa;
-                         color: #6c757d;
-                         border: 1px solid #dee2e6;
+                         background: #007bff;
+                         color: white;
+                         border: none;
                          border-radius: 6px;
-                         padding: 10px 20px;
-                         font-size: 14px;
+                         padding: 8px 16px;
+                         font-size: 13px;
                          cursor: pointer;
                          transition: all 0.15s ease;
                          user-select: none;
                          touch-action: manipulation;
                          -webkit-tap-highlight-color: transparent;
-                     " onmouseover="this.style.backgroundColor='#e9ecef'" onmouseout="this.style.backgroundColor='#f8f9fa'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${isNewGroup ? '创建' : '保存'}</button>
+                     " onmouseover="this.style.backgroundColor='#0056b3'" onmouseout="this.style.backgroundColor='#007bff'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${isNewGroup ? '创建' : '保存'}</button>
                  </div>
             `;
             
@@ -1743,7 +1747,7 @@
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         const imageData = e.target.result;
-                        document.getElementById('edit-image-preview').innerHTML = `<img src="${imageData}" style="max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer;" onclick="showLargeImage('${imageData}')" title="点击查看大图">`;
+                        document.getElementById('edit-image-preview').innerHTML = `<img src="${imageData}" style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer; object-fit: contain;" onclick="showLargeImage('${imageData}')" title="点击查看大图">`;
                         window.editImageData = imageData;
                     };
                     reader.readAsDataURL(file);
@@ -1768,8 +1772,8 @@
         
         function removeEditImage() {
             document.getElementById('edit-image-preview').innerHTML = `
-                <div style="color: #999; font-size: 16px;">
-                    <div style="font-size: 48px; margin-bottom: 8px;">📷</div>
+                <div style="color: #999; font-size: 14px;">
+                    <div style="font-size: 40px; margin-bottom: 6px;">📷</div>
                     <div>点击下方按钮选择图片</div>
                 </div>
             `;
