@@ -2191,16 +2191,13 @@
         function initBookmarkDrag() {
             const bookmark = document.getElementById('floating-bookmark');
             
-            // 单击书签带子跳转到书签位置
-            bookmark.addEventListener('click', async () => {
-                await goToBookmark();
-            });
-            
             // 长按或拖拽添加书签
             let startY = 0;
             let currentY = 0;
             let isDragging = false;
             let dragThreshold = 30; // 需要拖拽30px才触发添加书签
+            let startTime = 0;
+            let isClick = false;
 
             // 鼠标事件
             bookmark.addEventListener('mousedown', startDrag);
@@ -2215,6 +2212,8 @@
             function startDrag(e) {
                 e.preventDefault();
                 isDragging = true;
+                isClick = true;
+                startTime = Date.now();
                 startY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
                 currentY = startY;
                 bookmark.classList.add('dragging');
@@ -2225,6 +2224,11 @@
                 e.preventDefault();
                 currentY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
                 const deltaY = currentY - startY;
+                
+                // 如果移动距离超过阈值，不是点击
+                if (Math.abs(deltaY) > 5) {
+                    isClick = false;
+                }
                 
                 // 限制只能向下拖拽
                 if (deltaY > 0) {
@@ -2238,9 +2242,14 @@
                 isDragging = false;
                 
                 const deltaY = currentY - startY;
+                const duration = Date.now() - startTime;
                 
+                // 如果是短时间内的轻微移动，认为是点击
+                if (isClick && duration < 300 && Math.abs(deltaY) < 10) {
+                    goToBookmark();
+                }
                 // 如果拖拽距离超过阈值，添加书签
-                if (deltaY >= dragThreshold) {
+                else if (deltaY >= dragThreshold) {
                     addBookmark();
                 }
                 
