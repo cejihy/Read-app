@@ -1971,13 +1971,26 @@
         function showImageModal(imageSrc) {
             const modal = document.getElementById('image-modal');
             const modalImage = document.getElementById('modal-image');
-            modalImage.src = imageSrc;
-            modal.classList.add('show');
+            
+            // 预加载图片以提高性能
+            const img = new Image();
+            img.onload = () => {
+                modalImage.src = imageSrc;
+                modal.classList.add('show');
+            };
+            img.onerror = () => {
+                console.error('图片加载失败:', imageSrc);
+                modal.classList.add('show'); // 仍然显示模态框
+            };
+            img.src = imageSrc;
         }
 
         function hideImageModal() {
             const modal = document.getElementById('image-modal');
             modal.classList.remove('show');
+            // 清理图片引用
+            const modalImage = document.getElementById('modal-image');
+            modalImage.src = '';
         }
 
         function applyMarks() {
@@ -2276,6 +2289,29 @@
             }
         }
 
+        // 内存清理函数
+        function cleanupMemory() {
+            try {
+                // 清理无用的DOM元素引用
+                const unusedElements = document.querySelectorAll('.temp-element, .loading-element');
+                unusedElements.forEach(element => {
+                    if (element && element.parentNode) {
+                        element.parentNode.removeChild(element);
+                    }
+                });
+                
+                // 清理事件监听器（如果有的话）
+                // 这里可以添加清理特定事件监听器的代码
+                
+                console.log('内存清理完成');
+            } catch (error) {
+                console.error('内存清理失败:', error);
+            }
+        }
+
+        // 定期清理内存（每5分钟）
+        setInterval(cleanupMemory, 5 * 60 * 1000);
+
         // 更新功能
         function initUpdateFeature() {
             const updateBtn = document.getElementById('update-btn');
@@ -2445,19 +2481,14 @@
             const currentFontSize = cachedFontSize;
             const currentLineHeight = cachedLineHeight;
             
-            // 定义主题样式 - 使用更全面的选择器
+            // 定义主题样式 - 优化选择器性能
             const themeStyles = {
                 'body': {
                     'font-size': currentFontSize + 'px !important',
                     'line-height': currentLineHeight + ' !important',
                     'font-family': defaultFontFamily + ' !important'
                 },
-                'p, div, span, h1, h2, h3, h4, h5, h6, a, li, td, th, section, article, aside, nav, header, footer, main': {
-                    'font-size': currentFontSize + 'px !important',
-                    'line-height': currentLineHeight + ' !important',
-                    'font-family': defaultFontFamily + ' !important'
-                },
-                '*': {
+                'p, div, span, h1, h2, h3, h4, h5, h6': {
                     'font-size': currentFontSize + 'px !important',
                     'line-height': currentLineHeight + ' !important',
                     'font-family': defaultFontFamily + ' !important'
@@ -2511,15 +2542,16 @@
 
 
 
-        // 防止双击缩放
+        // 防止双击缩放 - 优化版本
         let lastTouchEnd = 0;
-        document.addEventListener('touchend', function (event) {
+        const preventDoubleTap = function (event) {
             const now = (new Date()).getTime();
             if (now - lastTouchEnd <= 300) {
                 event.preventDefault();
             }
             lastTouchEnd = now;
-        }, false);
+        };
+        document.addEventListener('touchend', preventDoubleTap, { passive: false });
 
                                   // 禁止页面滚动，但允许面板滚动
          document.addEventListener('touchmove', function(event) {
@@ -2664,6 +2696,17 @@
          
          
         
+        // 错误边界处理
+        window.addEventListener('error', (event) => {
+            console.error('全局错误:', event.error);
+            // 可以在这里添加错误上报逻辑
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('未处理的Promise拒绝:', event.reason);
+            // 可以在这里添加错误上报逻辑
+        });
+
         // 初始化应用
         initApp().then(() => {
             // 初始化设置事件监听器
@@ -2674,20 +2717,34 @@
             document.getElementById('floating-bookmark').style.display = 'none';
             // 初始化书签拖拽功能
             initBookmarkDrag();
+        }).catch(error => {
+            console.error('应用初始化失败:', error);
+            // 显示错误提示
+            const emptyState = document.getElementById('empty-state');
+            if (emptyState) {
+                emptyState.innerHTML = `
+                    <div class="icon">⚠️</div>
+                    <div class="text">应用加载失败</div>
+                    <div class="subtext">请刷新页面重试</div>
+                `;
+            }
         });
         
 
 
-        // 注册Service Worker
+        // 注册Service Worker - 优化版本
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('Service Worker注册成功:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.log('Service Worker注册失败:', error);
-                    });
+                // 延迟注册以减少初始加载时间
+                setTimeout(() => {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then(registration => {
+                            console.log('Service Worker注册成功:', registration.scope);
+                        })
+                        .catch(error => {
+                            console.log('Service Worker注册失败:', error);
+                        });
+                }, 1000);
             });
         }
 
