@@ -3092,10 +3092,7 @@
                 const isHeader = (className && className.includes('header')) || (id && id.includes('header'));
                 
                 if (isHeading || isNavigation || isToc || isTitle || isHeader) {
-                    // 只在开发模式下显示详细日志
-                    if (typeof window !== 'undefined' && window.DEV_MODE) {
-                    console.log('跳过特殊元素:', tagName, className, id);
-                    }
+                    
                     return;
                 }
                 
@@ -3111,10 +3108,7 @@
                 const isInTitle = parentElement.closest('h1, h2, h3, h4, h5, h6, .title, .chapter-title, .section-title');
                 
                 if (isEpubSpecial || isInTitle) {
-                    // 只在开发模式下显示详细日志
-                    if (typeof window !== 'undefined' && window.DEV_MODE) {
-                    console.log('跳过特殊元素:', tagName, className, isInTitle ? '(标题元素)' : '');
-                    }
+                    
                     return;
                 }
                 
@@ -3124,10 +3118,7 @@
                                     parentElement.closest('p, div');
                 
                 if (!isInParagraph) {
-                    // 只在开发模式下显示详细日志
-                    if (typeof window !== 'undefined' && window.DEV_MODE) {
-                    console.log('跳过非段落元素:', tagName, className);
-                    }
+                    
                     return;
                 }
                 
@@ -3992,235 +3983,7 @@
          
          
         
-        // 调试封面提取功能
-        window.debugCoverExtraction = async function(bookName) {
-            try {
-                console.log('=== 开始调试封面提取 ===');
-                console.log('书籍名称:', bookName);
-                
-                const book = await dataStore.getBook(bookName);
-                if (!book) {
-                    console.error('书籍不存在:', bookName);
-                    return;
-                }
-                
-                console.log('书籍数据:', {
-                    name: book.name,
-                    size: book.fileData ? book.fileData.byteLength : '无数据',
-                    hasCover: !!book.coverData
-                });
-                
-                // 从fileData创建File对象
-                const bookFile = new File([book.fileData], book.name, {
-                    type: 'application/epub+zip',
-                    lastModified: book.lastModified
-                });
-                
-                console.log('开始提取封面...');
-                const coverData = await dataStore.extractCover(bookFile);
-                
-                if (coverData) {
-                    console.log('封面提取成功！');
-                    console.log('封面数据长度:', coverData.length);
-                    console.log('封面数据预览:', coverData.substring(0, 100) + '...');
-                } else {
-                    console.log('封面提取失败');
-                }
-                
-                console.log('=== 调试完成 ===');
-                
-            } catch (error) {
-                console.error('调试封面提取失败:', error);
-            }
-        };
 
-        // 测试阅读时间更新功能
-        window.testLastReadUpdate = async function() {
-            try {
-                console.log('=== 测试阅读时间更新 ===');
-                console.log('当前书籍:', currentBookFileName);
-                
-                if (!currentBookFileName) {
-                    console.log('没有当前书籍');
-                    return;
-                }
-                
-                console.log('手动触发阅读时间更新...');
-                await dataStore.updateBookLastRead(currentBookFileName);
-                console.log('阅读时间更新完成');
-                
-                // 测试书架排序更新
-                console.log('更新书架排序...');
-                const books = await dataStore.getAllBooks();
-                console.log('排序后的书籍:', books.map(b => ({ name: b.name, lastRead: b.lastRead })));
-                
-            } catch (error) {
-                console.error('测试阅读时间更新失败:', error);
-            }
-        };
-
-        // 测试添加书籍功能
-        window.testAddBook = function() {
-            console.log('=== 测试添加书籍功能 ===');
-            console.log('触发文件选择...');
-            triggerFileSelect();
-        };
-
-        // 测试文件选择监听
-        window.testFileInput = function() {
-            console.log('=== 测试文件输入元素 ===');
-            const fileInput = document.getElementById('file-input');
-            if (fileInput) {
-                console.log('文件输入元素存在');
-                console.log('文件输入属性:', {
-                    type: fileInput.type,
-                    accept: fileInput.accept,
-                    multiple: fileInput.multiple,
-                    style: fileInput.style.cssText
-                });
-            } else {
-                console.error('文件输入元素不存在');
-            }
-        };
-
-        // 综合诊断功能
-        window.diagnoseAddBook = function() {
-            console.log('=== 添加书籍功能诊断 ===');
-            
-            // 检查epub.js库
-            if (typeof ePub === 'undefined') {
-                console.error('❌ epub.js库未加载');
-            } else {
-                console.log('✅ epub.js库已加载');
-            }
-            
-            // 检查dataStore
-            if (typeof dataStore === 'undefined') {
-                console.error('❌ dataStore未定义');
-            } else {
-                console.log('✅ dataStore已定义');
-            }
-            
-            // 检查文件输入元素
-            const fileInput = document.getElementById('file-input');
-            if (!fileInput) {
-                console.error('❌ 文件输入元素不存在');
-            } else {
-                console.log('✅ 文件输入元素存在');
-            }
-            
-            // 检查添加书籍按钮
-            const addBookBtn = document.querySelector('[onclick="showBookshelf()"]');
-            if (!addBookBtn) {
-                console.error('❌ 添加书籍按钮不存在');
-            } else {
-                console.log('✅ 添加书籍按钮存在');
-            }
-            
-            // 检查是否为移动设备
-            const isMobile = isMobileDevice();
-            console.log('设备类型:', isMobile ? '移动设备' : '桌面设备');
-            
-            // 检查浏览器支持
-            console.log('浏览器信息:', navigator.userAgent);
-            console.log('支持File API:', 'File' in window);
-            console.log('支持FileReader API:', 'FileReader' in window);
-        };
-
-        // 测试书架更新功能
-        window.testBookshelfUpdate = async function() {
-            console.log('=== 测试书架更新功能 ===');
-            console.log('当前缓存书籍数量:', cachedBooks.length);
-            
-            // 重新获取书籍数据
-            const books = await dataStore.getAllBooks();
-            console.log('数据库中的书籍数量:', books.length);
-            console.log('书籍列表:', books.map(b => b.name));
-            
-            // 更新缓存
-            cachedBooks = books;
-            
-            // 重新渲染书架
-            renderBookshelf();
-            console.log('书架更新完成');
-        };
-
-        // 检查当前书籍高亮
-        window.checkCurrentBookHighlight = function() {
-            console.log('=== 检查当前书籍高亮 ===');
-            console.log('当前书籍文件名:', currentBookFileName);
-            
-            const currentBookElements = document.querySelectorAll('.book-item.current');
-            console.log('当前书籍元素数量:', currentBookElements.length);
-            
-            currentBookElements.forEach((element, index) => {
-                console.log(`当前书籍元素 ${index + 1}:`, {
-                    className: element.className,
-                    dataBookName: element.getAttribute('data-book-name'),
-                    computedStyle: window.getComputedStyle(element)
-                });
-            });
-            
-            // 检查所有书籍元素
-            const allBookElements = document.querySelectorAll('.book-item');
-            console.log('所有书籍元素数量:', allBookElements.length);
-            
-            allBookElements.forEach((element, index) => {
-                const bookName = element.getAttribute('data-book-name');
-                const isCurrent = bookName === currentBookFileName;
-                console.log(`书籍 ${index + 1}: ${bookName}, 是否当前: ${isCurrent}`);
-            });
-        };
-
-        // 测试移动设备文件选择
-        window.testMobileFileSelect = function() {
-            console.log('=== 测试移动设备文件选择 ===');
-            const isMobile = isMobileDevice();
-            console.log('设备检测结果:', isMobile ? '移动设备' : '桌面设备');
-            console.log('用户代理:', navigator.userAgent);
-            
-            if (isMobile) {
-                console.log('使用移动设备文件选择...');
-                triggerMobileFileSelect();
-            } else {
-                console.log('使用桌面设备文件选择...');
-                triggerFileSelect();
-            }
-        };
-
-        // 全局封面刷新功能（用于调试）
-        window.refreshAllCovers = async function() {
-            try {
-                console.log('开始刷新所有书籍封面...');
-                const books = await dataStore.getAllBooks();
-                let successCount = 0;
-                let failCount = 0;
-                
-                for (const book of books) {
-                    try {
-                        const coverData = await dataStore.updateBookCover(book.name);
-                        if (coverData) {
-                            successCount++;
-                            console.log('封面刷新成功:', book.name);
-                        } else {
-                            failCount++;
-                            console.log('封面刷新失败:', book.name);
-                        }
-                    } catch (error) {
-                        failCount++;
-                        console.error('封面刷新出错:', book.name, error);
-                    }
-                }
-                
-                console.log(`封面刷新完成: 成功 ${successCount} 本，失败 ${failCount} 本`);
-                
-                // 重新渲染书架
-                await updateBookshelf();
-                
-            } catch (error) {
-                console.error('批量刷新封面失败:', error);
-            }
-        };
         
         // 错误边界处理
         window.addEventListener('error', (event) => {
@@ -4543,14 +4306,9 @@
         // 全局变量存储书籍数据
         let cachedBooks = [];
         
-        // 开发模式开关（可以通过控制台设置）
-        window.DEV_MODE = false; // 设置为 true 可以显示详细日志
-        
         // 更新书架显示
         async function updateBookshelf() {
             try {
-                console.log('开始更新书架...');
-                
                 // 确保数据库已初始化
                 if (!dataStore.db) {
                     await dataStore.init();
@@ -4558,15 +4316,12 @@
                 
                 // 获取所有书籍
                 const books = await dataStore.getAllBooks();
-                console.log('获取到书籍:', books.length, '本');
-                console.log('书籍列表:', books.map(b => b.name));
                 
                 // 缓存书籍数据
                 cachedBooks = books;
                 
                 // 渲染书架
                 renderBookshelf();
-                console.log('书架更新完成');
                 
             } catch (error) {
                 console.error('更新书架失败:', error);
@@ -4939,61 +4694,7 @@
             }
         }
 
-        // 刷新书籍封面
-        async function refreshBookCover(bookName) {
-            try {
-                console.log('手动刷新封面:', bookName);
-                
-                // 清除现有封面数据
-                const book = await dataStore.getBook(bookName);
-                if (book) {
-                    book.coverData = null;
-                    const transaction = dataStore.db.transaction(['books'], 'readwrite');
-                    const store = transaction.objectStore('books');
-                    await new Promise((resolve, reject) => {
-                        const request = store.put(book);
-                        request.onsuccess = resolve;
-                        request.onerror = reject;
-                    });
-                }
-                
-                // 重新提取封面
-                const coverData = await dataStore.updateBookCover(bookName);
-                if (coverData) {
-                    console.log('封面刷新成功:', bookName);
-                    // 更新UI
-                    const bookElement = document.querySelector(`[data-book-name="${bookName}"]`);
-                    if (bookElement) {
-                        const bookIcon = bookElement.querySelector('.book-icon');
-                        const existingCover = bookElement.querySelector('.book-cover');
-                        
-                        if (existingCover) {
-                            existingCover.remove();
-                        }
-                        
-                        if (bookIcon) {
-                            const newCoverImg = document.createElement('img');
-                            newCoverImg.src = coverData;
-                            newCoverImg.alt = '封面';
-                            newCoverImg.className = 'book-cover';
-                            newCoverImg.onerror = function() {
-                                this.style.display = 'none';
-                                bookIcon.style.display = 'flex';
-                            };
-                            newCoverImg.onload = function() {
-                                bookIcon.style.display = 'none';
-                            };
-                            
-                            bookElement.insertBefore(newCoverImg, bookIcon);
-                        }
-                    }
-                } else {
-                    console.warn('封面刷新失败:', bookName);
-                }
-            } catch (error) {
-                console.error('刷新封面失败:', error);
-            }
-        }
+
 
         // 删除书籍（从书架）
         async function deleteBook(bookName) {
@@ -5038,7 +4739,6 @@
         // 更新存储信息显示
         async function updateStorageInfo() {
             try {
-                console.log('开始更新存储信息...');
                 const storageInfo = await dataStore.getStorageInfo();
                 
                 // 更新标记数据信息
@@ -5049,15 +4749,12 @@
                     marksElement.textContent = `${marksTotalCount} 项，${formatFileSize(marksTotalSize)}`;
                 }
                 
-
-                
                 // 更新总存储信息
                 const totalElement = document.getElementById('total-storage-info');
                 if (totalElement) {
                     totalElement.textContent = `${storageInfo.total.count} 项，${formatFileSize(storageInfo.total.size)}`;
                 }
                 
-                console.log('存储信息更新完成:', storageInfo);
             } catch (error) {
                 console.error('更新存储信息失败:', error);
                 // 显示错误状态
