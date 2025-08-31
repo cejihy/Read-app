@@ -1951,8 +1951,14 @@
                             </div>
                         `;
                         
-                        // 压缩图片
-                        const compressedImageData = await compressImage(file, 800, 600, 0.8);
+                        // 压缩图片 - 手机上使用更严格的限制
+                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                        const maxWidth = isMobile ? 600 : 800;
+                        const maxHeight = isMobile ? 450 : 600;
+                        const quality = isMobile ? 0.7 : 0.8;
+                        
+                        console.log('设备检测:', { isMobile, maxWidth, maxHeight, quality });
+                        const compressedImageData = await compressImage(file, maxWidth, maxHeight, quality);
                         
                         document.getElementById('edit-image-preview').innerHTML = `<img src="${compressedImageData}" style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer; object-fit: contain;" onclick="showLargeImage('${compressedImageData}')" title="点击查看大图">`;
                         window.editImageData = compressedImageData;
@@ -2996,40 +3002,87 @@
             return new Promise((resolve, reject) => {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
+                
+                if (!ctx) {
+                    reject(new Error('Canvas 2D上下文不可用'));
+                    return;
+                }
+                
                 const img = new Image();
                 
                 img.onload = function() {
-                    // 计算新的尺寸
-                    let { width, height } = img;
-                    if (width > maxWidth) {
-                        height = (height * maxWidth) / width;
-                        width = maxWidth;
+                    try {
+                        // 计算新的尺寸
+                        let { width, height } = img;
+                        if (width > maxWidth) {
+                            height = (height * maxWidth) / width;
+                            width = maxWidth;
+                        }
+                        if (height > maxHeight) {
+                            width = (width * maxHeight) / height;
+                            height = maxHeight;
+                        }
+                        
+                        // 设置canvas尺寸
+                        canvas.width = width;
+                        canvas.height = height;
+                        
+                        // 绘制图片
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // 直接使用JPEG格式，确保兼容性
+                        const format = 'image/jpeg';
+                        const finalQuality = Math.min(quality, 0.9); // JPEG质量限制
+                        
+                        let compressedDataUrl;
+                        try {
+                            compressedDataUrl = canvas.toDataURL(format, finalQuality);
+                        } catch (error) {
+                            console.log('格式转换失败，尝试JPEG:', error);
+                            // 如果指定格式失败，尝试JPEG
+                            compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        }
+                        
+                        // 验证压缩效果
+                        const compressedSize = Math.round(compressedDataUrl.length * 0.75);
+                        const compressionRatio = Math.round((1 - compressedSize / file.size) * 100);
+                        
+                        console.log('图片压缩完成:', {
+                            原始大小: file.size,
+                            压缩后大小: compressedSize,
+                            压缩比例: compressionRatio + '%',
+                            格式: format,
+                            质量: finalQuality
+                        });
+                        
+                        // 如果压缩效果不好，降低质量重试
+                        if (compressedSize > file.size) {
+                            console.log('压缩效果不佳，降低质量重试');
+                            try {
+                                const retryDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                                const retrySize = Math.round(retryDataUrl.length * 0.75);
+                                
+                                if (retrySize < compressedSize) {
+                                    console.log('使用更低质量:', retrySize);
+                                    URL.revokeObjectURL(url);
+                                    resolve(retryDataUrl);
+                                    return;
+                                }
+                            } catch (error) {
+                                console.log('重试压缩失败:', error);
+                            }
+                        }
+                        
+                        // 清理临时URL
+                        URL.revokeObjectURL(url);
+                        resolve(compressedDataUrl);
+                        
+                    } catch (error) {
+                        console.error('图片压缩失败:', error);
+                        // 清理临时URL
+                        URL.revokeObjectURL(url);
+                        reject(error);
                     }
-                    if (height > maxHeight) {
-                        width = (width * maxHeight) / height;
-                        height = maxHeight;
-                    }
-                    
-                    // 设置canvas尺寸
-                    canvas.width = width;
-                    canvas.height = height;
-                    
-                    // 绘制图片
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // 转换为WebP格式（如果支持）或JPEG
-                    const format = 'image/webp';
-                    const compressedDataUrl = canvas.toDataURL(format, quality);
-                    
-                    console.log('图片压缩完成:', {
-                        原始大小: file.size,
-                        压缩后大小: Math.round(compressedDataUrl.length * 0.75), // 估算
-                        压缩比例: Math.round((1 - (compressedDataUrl.length * 0.75) / file.size) * 100) + '%'
-                    });
-                    
-                    // 清理临时URL
-                    URL.revokeObjectURL(url);
-                    resolve(compressedDataUrl);
                 };
                 
                 img.onerror = function() {
@@ -3050,6 +3103,25 @@
                 // 获取所有标记数据
                 const marks = await dataStore.getAllMarks();
                 const markGroups = await dataStore.getAllMarkGroups();
+                
+                // 分析图片数据大小
+                let totalImageSize = 0;
+                let imageCount = 0;
+                const imageSizes = [];
+                
+                markGroups.forEach(group => {
+                    if (group.imageData) {
+                        const size = Math.round(group.imageData.length * 0.75);
+                        totalImageSize += size;
+                        imageCount++;
+                        imageSizes.push({
+                            group: group.name,
+                            size: size,
+                            format: group.imageData.includes('image/jpeg') ? 'JPEG' : 
+                                   group.imageData.includes('image/webp') ? 'WebP' : 'PNG'
+                        });
+                    }
+                });
                 
                 // 构建导出数据
                 const exportData = {
@@ -3074,8 +3146,20 @@
                 // 清理URL
                 URL.revokeObjectURL(url);
                 
-                console.log('标记数据导出成功');
-                alert('标记数据导出成功！');
+                // 显示导出信息
+                const totalSize = Math.round(dataBlob.size / 1024);
+                const imageSizeKB = Math.round(totalImageSize / 1024);
+                const dataSizeKB = totalSize - imageSizeKB;
+                
+                console.log('标记数据导出成功', {
+                    总大小: totalSize + 'KB',
+                    图片大小: imageSizeKB + 'KB',
+                    数据大小: dataSizeKB + 'KB',
+                    图片数量: imageCount,
+                    图片详情: imageSizes
+                });
+                
+                alert(`标记数据导出成功！\n总大小: ${totalSize}KB\n图片: ${imageCount}张 (${imageSizeKB}KB)\n数据: ${dataSizeKB}KB`);
                 
             } catch (error) {
                 console.error('导出标记数据失败:', error);
