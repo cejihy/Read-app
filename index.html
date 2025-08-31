@@ -583,67 +583,7 @@
             visibility: visible;
         }
 
-        /* 图片模态框 */
-        .image-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
 
-        .image-modal.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .image-modal-content {
-            position: relative;
-            max-width: 90%;
-            max-height: 90%;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .image-modal-close {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            font-size: 18px;
-            cursor: pointer;
-            z-index: 2001;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .image-modal-close:hover {
-            background: rgba(0, 0, 0, 0.7);
-        }
-
-        #modal-image {
-            width: 100%;
-            height: auto;
-            max-width: 100%;
-            max-height: 100%;
-            display: block;
-        }
 
         /* 设置面板 */
         .settings-panel {
@@ -938,13 +878,7 @@
         <!-- 遮罩层 -->
         <div class="overlay" id="overlay"></div>
         
-        <!-- 图片模态框 -->
-        <div class="image-modal" id="image-modal">
-            <div class="image-modal-content">
-                <button class="image-modal-close" id="image-modal-close">×</button>
-                <img id="modal-image" src="" alt="标记图片">
-            </div>
-        </div>
+
         
         <!-- 统一面板 -->
         <div class="unified-panel" id="unified-panel">
@@ -1120,13 +1054,7 @@
             document.getElementById('overlay').classList.add('show');
         }
 
-        // 图片模态框事件
-        document.getElementById('image-modal-close').addEventListener('click', hideImageModal);
-        document.getElementById('image-modal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                hideImageModal();
-            }
-        });
+
 
 
 
@@ -1681,65 +1609,85 @@
             editContent.innerHTML = `
                 <h3 style="margin: 0 0 20px 0; color: #333;">${modalTitle}</h3>
                 
+                <!-- 图片区域 - 主要元素 -->
+                <div style="margin-bottom: 24px; text-align: center;">
+                    <div id="edit-image-preview" style="
+                        margin-bottom: 16px;
+                        min-height: 200px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: #f8f9fa;
+                        border: 2px dashed #dee2e6;
+                        border-radius: 12px;
+                        transition: all 0.3s ease;
+                    ">
+                        ${currentImage ? 
+                            `<img src="${currentImage}" style="max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer;" onclick="showLargeImage('${currentImage}')" title="点击查看大图">` : 
+                            `<div style="color: #999; font-size: 16px;">
+                                <div style="font-size: 48px; margin-bottom: 8px;">📷</div>
+                                <div>点击下方按钮选择图片</div>
+                            </div>`
+                        }
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; justify-content: center;">
+                        <input type="file" id="edit-image-input" accept="image/*" style="display: none;">
+                        <button onclick="document.getElementById('edit-image-input').click()" style="
+                            background: #007bff;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            padding: 10px 16px;
+                            font-size: 14px;
+                            cursor: pointer;
+                            transition: all 0.15s ease;
+                            user-select: none;
+                            touch-action: manipulation;
+                            -webkit-tap-highlight-color: transparent;
+                        " onmouseover="this.style.backgroundColor='#0056b3'" onmouseout="this.style.backgroundColor='#007bff'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">选择图片</button>
+                        ${currentImage ? `<button onclick="removeEditImage()" style="
+                            background: #dc3545;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            padding: 10px 16px;
+                            font-size: 14px;
+                            cursor: pointer;
+                            transition: all 0.15s ease;
+                            user-select: none;
+                            touch-action: manipulation;
+                            -webkit-tap-highlight-color: transparent;
+                        " onmouseover="this.style.backgroundColor='#c82333'" onmouseout="this.style.backgroundColor='#dc3545'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">移除图片</button>` : ''}
+                    </div>
+                </div>
+                
+                <!-- 标记词区域 -->
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 8px; color: #555; font-weight: 500;">标记词</label>
                     <input type="text" id="edit-words-input" value="${groupWords.join('、')}" style="
                         width: 100%;
-                        padding: 10px;
+                        padding: 12px;
                         border: 1px solid #ddd;
-                        border-radius: 6px;
+                        border-radius: 8px;
                         font-size: 14px;
                         box-sizing: border-box;
                     " placeholder="输入标记词，用顿号分隔">
                 </div>
                 
-                <div style="margin-bottom: 16px;">
+                <!-- 标记内容区域 -->
+                <div style="margin-bottom: 20px;">
                     <label style="display: block; margin-bottom: 8px; color: #555; font-weight: 500;">标记内容</label>
                     <textarea id="edit-note-input" style="
                         width: 100%;
-                        padding: 10px;
+                        padding: 12px;
                         border: 1px solid #ddd;
-                        border-radius: 6px;
+                        border-radius: 8px;
                         font-size: 14px;
                         box-sizing: border-box;
                         min-height: 80px;
                         resize: vertical;
                     " placeholder="输入标记内容（可选）">${currentNote}</textarea>
-                </div>
-                
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; color: #555; font-weight: 500;">标记图片</label>
-                    <div id="edit-image-preview" style="margin-bottom: 8px;">
-                        ${currentImage ? `<img src="${currentImage}" style="max-width: 100px; max-height: 60px; border-radius: 4px; border: 1px solid #ddd;">` : '<span style="color: #999;">暂无图片</span>'}
-                    </div>
-                    <input type="file" id="edit-image-input" accept="image/*" style="display: none;">
-                                         <button onclick="document.getElementById('edit-image-input').click()" style="
-                         background: #f8f9fa;
-                         color: #6c757d;
-                         border: 1px solid #dee2e6;
-                         border-radius: 6px;
-                         padding: 8px 12px;
-                         font-size: 12px;
-                         cursor: pointer;
-                         margin-right: 8px;
-                         transition: all 0.15s ease;
-                         user-select: none;
-                         touch-action: manipulation;
-                         -webkit-tap-highlight-color: transparent;
-                     " onmouseover="this.style.backgroundColor='#e9ecef'" onmouseout="this.style.backgroundColor='#f8f9fa'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">选择图片</button>
-                     <button onclick="removeEditImage()" style="
-                         background: #f8f9fa;
-                         color: #6c757d;
-                         border: 1px solid #dee2e6;
-                         border-radius: 6px;
-                         padding: 8px 12px;
-                         font-size: 12px;
-                         cursor: pointer;
-                         transition: all 0.15s ease;
-                         user-select: none;
-                         touch-action: manipulation;
-                         -webkit-tap-highlight-color: transparent;
-                     " onmouseover="this.style.backgroundColor='#e9ecef'" onmouseout="this.style.backgroundColor='#f8f9fa'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">移除图片</button>
                 </div>
                 
                                  <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -1795,7 +1743,7 @@
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         const imageData = e.target.result;
-                        document.getElementById('edit-image-preview').innerHTML = `<img src="${imageData}" style="max-width: 100px; max-height: 60px; border-radius: 4px; border: 1px solid #ddd;">`;
+                        document.getElementById('edit-image-preview').innerHTML = `<img src="${imageData}" style="max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer;" onclick="showLargeImage('${imageData}')" title="点击查看大图">`;
                         window.editImageData = imageData;
                     };
                     reader.readAsDataURL(file);
@@ -1819,8 +1767,49 @@
         }
         
         function removeEditImage() {
-            document.getElementById('edit-image-preview').innerHTML = '<span style="color: #999;">暂无图片</span>';
+            document.getElementById('edit-image-preview').innerHTML = `
+                <div style="color: #999; font-size: 16px;">
+                    <div style="font-size: 48px; margin-bottom: 8px;">📷</div>
+                    <div>点击下方按钮选择图片</div>
+                </div>
+            `;
             window.editImageData = null;
+        }
+
+        function showLargeImage(imageSrc) {
+            // 创建大图查看模态框
+            const largeImageModal = document.createElement('div');
+            largeImageModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 20000;
+                cursor: pointer;
+            `;
+            
+            const largeImage = document.createElement('img');
+            largeImage.src = imageSrc;
+            largeImage.style.cssText = `
+                max-width: 90%;
+                max-height: 90%;
+                object-fit: contain;
+                border-radius: 8px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            `;
+            
+            largeImageModal.appendChild(largeImage);
+            document.body.appendChild(largeImageModal);
+            
+            // 点击关闭大图
+            largeImageModal.addEventListener('click', () => {
+                document.body.removeChild(largeImageModal);
+            });
         }
         
         function closeEditModal() {
@@ -1968,30 +1957,7 @@
             applyMarks();
         }
 
-        function showImageModal(imageSrc) {
-            const modal = document.getElementById('image-modal');
-            const modalImage = document.getElementById('modal-image');
-            
-            // 预加载图片以提高性能
-            const img = new Image();
-            img.onload = () => {
-                modalImage.src = imageSrc;
-                modal.classList.add('show');
-            };
-            img.onerror = () => {
-                console.error('图片加载失败:', imageSrc);
-                modal.classList.add('show'); // 仍然显示模态框
-            };
-            img.src = imageSrc;
-        }
 
-        function hideImageModal() {
-            const modal = document.getElementById('image-modal');
-            modal.classList.remove('show');
-            // 清理图片引用
-            const modalImage = document.getElementById('modal-image');
-            modalImage.src = '';
-        }
 
         function applyMarks() {
             if (!rendition || markWords.length === 0) return;
@@ -2054,6 +2020,32 @@
                             const markNote = doc.createElement('span');
                             markNote.className = 'mark-note';
                             markNote.textContent = note;
+                            markNote.style.cssText = `
+                                margin-left: 4px;
+                                font-size: 0.9em;
+                                color: #666;
+                                cursor: pointer;
+                                padding: 1px 3px;
+                                border-radius: 2px;
+                                transition: background-color 0.2s;
+                            `;
+                            
+                            // 点击注释打开编辑界面
+                            markNote.onclick = () => {
+                                const groupId = markGroups[word];
+                                if (groupId) {
+                                    editMarkGroup(groupId);
+                                }
+                            };
+                            
+                            markNote.onmouseenter = function() {
+                                this.style.backgroundColor = '#f0f0f0';
+                            };
+                            
+                            markNote.onmouseleave = function() {
+                                this.style.backgroundColor = 'transparent';
+                            };
+                            
                             fragment.appendChild(markNote);
                         }
                         
@@ -2075,7 +2067,13 @@
                             markImage.onerror = () => {
                                 console.error('图片加载失败:', image.substring(0, 50) + '...');
                             };
-                            markImage.onclick = () => showImageModal(image);
+                            // 点击图片打开编辑界面
+                            markImage.onclick = () => {
+                                const groupId = markGroups[word];
+                                if (groupId) {
+                                    editMarkGroup(groupId);
+                                }
+                            };
                             markImage.onmouseenter = function() {
                                 this.style.opacity = '0.8';
                             };
