@@ -1013,6 +1013,21 @@
                 </div>
             </div>
 
+            <div class="settings-section">
+                <div class="settings-section-title">应用更新</div>
+                <div class="update-settings">
+                    <div class="setting-row">
+                        <span class="setting-label">清除缓存并更新</span>
+                        <div class="control-group">
+                            <button class="control-btn" id="update-btn" style="background: #007bff; color: white; border: 1px solid #007bff;">检查更新</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                        清除缓存并重新加载最新版本
+                    </div>
+                </div>
+            </div>
+
 
 
 
@@ -2259,6 +2274,55 @@
             }
         }
 
+        // 更新功能
+        function initUpdateFeature() {
+            const updateBtn = document.getElementById('update-btn');
+            if (updateBtn) {
+                updateBtn.addEventListener('click', async () => {
+                    try {
+                        // 显示更新中状态
+                        updateBtn.textContent = '更新中...';
+                        updateBtn.disabled = true;
+                        
+                        // 清除所有缓存
+                        if ('caches' in window) {
+                            const cacheNames = await caches.keys();
+                            await Promise.all(
+                                cacheNames.map(cacheName => caches.delete(cacheName))
+                            );
+                            console.log('缓存已清除');
+                        }
+                        
+                        // 清除Service Worker
+                        if ('serviceWorker' in navigator) {
+                            const registrations = await navigator.serviceWorker.getRegistrations();
+                            await Promise.all(
+                                registrations.map(registration => registration.unregister())
+                            );
+                            console.log('Service Worker已清除');
+                        }
+                        
+                        // 清除IndexedDB数据（可选，这里保留用户数据）
+                        // await dataStore.clearAll();
+                        
+                        // 延迟一下让用户看到更新状态
+                        setTimeout(() => {
+                            // 重新加载页面
+                            window.location.reload(true);
+                        }, 1000);
+                        
+                    } catch (error) {
+                        console.error('更新失败:', error);
+                        updateBtn.textContent = '更新失败';
+                        setTimeout(() => {
+                            updateBtn.textContent = '检查更新';
+                            updateBtn.disabled = false;
+                        }, 2000);
+                    }
+                });
+            }
+        }
+
         // 初始化设置事件
         async function initSettings() {
             // 从数据库获取保存的设置
@@ -2602,6 +2666,8 @@
         initApp().then(() => {
             // 初始化设置事件监听器
             initSettings();
+            // 初始化更新功能
+            initUpdateFeature();
             // 初始化隐藏浮动书签
             document.getElementById('floating-bookmark').style.display = 'none';
             // 初始化书签拖拽功能
