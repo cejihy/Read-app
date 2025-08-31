@@ -1730,13 +1730,13 @@
             if (button) {
                 // 移动设备优化：使用 touchend 而不是 touchstart
                 button.addEventListener('touchend', function(e) {
-                    e.preventDefault();
+                e.preventDefault();
                     e.stopPropagation();
-                    handler();
+                handler();
                 }, { passive: false });
                 
                 // 桌面设备
-                button.addEventListener('click', handler);
+            button.addEventListener('click', handler);
             }
         }
 
@@ -1932,9 +1932,9 @@
                 });
                 console.log('rendition创建成功');
 
-                // 直接显示第一页
+                                 // 直接显示第一页
                 console.log('显示第一页...');
-                await rendition.display();
+                 await rendition.display();
                 console.log('第一页显示成功');
                 
 
@@ -2025,7 +2025,7 @@
         // 防抖的标记应用和目录更新
         const debouncedApplyMarks = debounce(applyMarks, 150);
         const debouncedUpdateTOCHighlight = debounce(updateTOCHighlight, 100);
-        
+
         // 防抖的阅读时间更新（5秒内只更新一次）
         const debouncedUpdateLastRead = debounce(async (bookName) => {
             if (bookName) {
@@ -2037,10 +2037,10 @@
                     const books = await dataStore.getAllBooks();
                     cachedBooks = books;
                     renderBookshelf();
-                } catch (error) {
-                    console.error('更新书籍阅读时间失败:', error);
+                    } catch (error) {
+                        console.error('更新书籍阅读时间失败:', error);
+                    }
                 }
-            }
         }, 5000);
 
         async function prevPage() {
@@ -3094,7 +3094,7 @@
                 if (isHeading || isNavigation || isToc || isTitle || isHeader) {
                     // 只在开发模式下显示详细日志
                     if (typeof window !== 'undefined' && window.DEV_MODE) {
-                        console.log('跳过特殊元素:', tagName, className, id);
+                    console.log('跳过特殊元素:', tagName, className, id);
                     }
                     return;
                 }
@@ -3113,7 +3113,7 @@
                 if (isEpubSpecial || isInTitle) {
                     // 只在开发模式下显示详细日志
                     if (typeof window !== 'undefined' && window.DEV_MODE) {
-                        console.log('跳过特殊元素:', tagName, className, isInTitle ? '(标题元素)' : '');
+                    console.log('跳过特殊元素:', tagName, className, isInTitle ? '(标题元素)' : '');
                     }
                     return;
                 }
@@ -3126,7 +3126,7 @@
                 if (!isInParagraph) {
                     // 只在开发模式下显示详细日志
                     if (typeof window !== 'undefined' && window.DEV_MODE) {
-                        console.log('跳过非段落元素:', tagName, className);
+                    console.log('跳过非段落元素:', tagName, className);
                     }
                     return;
                 }
@@ -3884,11 +3884,11 @@
                 updateSettingsDisplay(savedFontSize, savedLineHeight);
                 
                 // 初始化标记数据（只初始化一次）
-                await initMarkData();
-                
+                 await initMarkData();
+                 
                 // 更新存储信息显示（只更新一次）
                 await updateStorageInfo();
-                
+                 
                 // 更新书架显示（只更新一次）
                 await updateBookshelf();
                 

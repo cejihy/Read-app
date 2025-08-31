@@ -331,6 +331,43 @@ class ReaderDataStore {
             
             // 优化：只查找前20个文件，避免遍历整个EPUB
             const limitedFiles = allFiles.slice(0, 20);
+            
+            // 首先查找XHTML封面文件
+            const xhtmlFiles = limitedFiles.filter(file => 
+                /\.(xhtml|html|htm)$/i.test(file) && 
+                (file.toLowerCase().includes('cover') || file.toLowerCase().includes('title'))
+            );
+            
+            if (xhtmlFiles.length > 0) {
+                console.log('找到XHTML封面文件:', xhtmlFiles[0]);
+                const xhtmlFile = zip.file(xhtmlFiles[0]);
+                const xhtmlContent = await xhtmlFile.async('string');
+                
+                // 查找img标签
+                const imgMatch = xhtmlContent.match(/<img[^>]*src=["']([^"']+)["'][^>]*>/i);
+                if (imgMatch) {
+                    const imgSrc = imgMatch[1];
+                    console.log('在XHTML中找到图片路径:', imgSrc);
+                    
+                    // 构建图片文件的完整路径
+                    const xhtmlDir = xhtmlFiles[0].substring(0, xhtmlFiles[0].lastIndexOf('/') + 1);
+                    const imgPath = imgSrc.startsWith('/') ? imgSrc.substring(1) : xhtmlDir + imgSrc;
+                    console.log('图片完整路径:', imgPath);
+                    
+                    const imgFile = zip.file(imgPath);
+                    if (imgFile) {
+                        console.log('找到封面图片文件:', imgPath);
+                        const imgExtension = imgPath.split('.').pop().toLowerCase();
+                        const imgMimeType = imgExtension === 'png' ? 'image/png' : 
+                                          imgExtension === 'gif' ? 'image/gif' : 'image/jpeg';
+                        
+                        const coverData = await imgFile.async('base64');
+                        return `data:${imgMimeType};base64,${coverData}`;
+                    }
+                }
+            }
+            
+            // 查找普通图片文件
             const imageFiles = limitedFiles.filter(file => 
                 /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file) && 
                 !file.includes('__MACOSX') && 
@@ -511,8 +548,91 @@ class ReaderDataStore {
                 return null;
             }
             
-            // 获取文件扩展名
+            // 检查是否是XHTML文件（封面页面）
             const extension = coverPath.split('.').pop().toLowerCase();
+            if (extension === 'xhtml' || extension === 'html' || extension === 'htm') {
+                console.log('找到XHTML封面文件，解析其中的图片...');
+                const xhtmlContent = await coverFile.async('string');
+                
+                // 查找img标签
+                const imgMatch = xhtmlContent.match(/<img[^>]*src=["']([^"']+)["'][^>]*>/i);
+                if (imgMatch) {
+                    const imgSrc = imgMatch[1];
+                    console.log('在XHTML中找到图片路径:', imgSrc);
+                    
+                    // 构建图片文件的完整路径
+                    const xhtmlDir = coverPath.substring(0, coverPath.lastIndexOf('/') + 1);
+                    const imgPath = imgSrc.startsWith('/') ? imgSrc.substring(1) : xhtmlDir + imgSrc;
+                    console.log('图片完整路径:', imgPath);
+                    
+                    const imgFile = zip.file(imgPath);
+                    if (imgFile) {
+                        console.log('找到封面图片文件:', imgPath);
+                        const imgExtension = imgPath.split('.').pop().toLowerCase();
+                        const imgMimeType = imgExtension === 'png' ? 'image/png' : 
+                                          imgExtension === 'gif' ? 'image/gif' : 'image/jpeg';
+                        
+                        const coverData = await imgFile.async('base64');
+                        return `data:${imgMimeType};base64,${coverData}`;
+                    } else {
+                        console.warn('无法找到XHTML中引用的图片文件:', imgPath);
+                        
+                        // 尝试不同的路径组合
+                        const possibleImgPaths = [
+                            imgSrc,
+                            xhtmlDir + imgSrc,
+                            imgSrc.replace(/^\.\//, ''),
+                            imgSrc.replace(/^\.\//, xhtmlDir),
+                            'images/' + imgSrc,
+                            'Images/' + imgSrc,
+                            'image/' + imgSrc,
+                            'Image/' + imgSrc
+                        ];
+                        
+                        for (const path of possibleImgPaths) {
+                            console.log('尝试图片路径:', path);
+                            const testImgFile = zip.file(path);
+                            if (testImgFile) {
+                                console.log('找到封面图片文件:', path);
+                                const imgExt = path.split('.').pop().toLowerCase();
+                                const imgMime = imgExt === 'png' ? 'image/png' : 
+                                              imgExt === 'gif' ? 'image/gif' : 'image/jpeg';
+                                
+                                const coverData = await testImgFile.async('base64');
+                                return `data:${imgMime};base64,${coverData}`;
+                            }
+                        }
+                    }
+                } else {
+                    console.warn('XHTML文件中未找到img标签');
+                }
+                
+                // 如果XHTML解析失败，回退到简单方法
+                console.log('XHTML解析失败，使用简单方法查找图片...');
+                const allFiles = Object.keys(zip.files);
+                const imageFiles = allFiles.filter(file => 
+                    /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file) && 
+                    !file.includes('__MACOSX') && 
+                    !file.includes('.DS_Store')
+                );
+                console.log('找到的图片文件:', imageFiles);
+                
+                if (imageFiles.length > 0) {
+                    const firstImage = imageFiles[0];
+                    console.log('使用第一个图片文件作为封面:', firstImage);
+                    const imageFile = zip.file(firstImage);
+                    const imgExt = firstImage.split('.').pop().toLowerCase();
+                    const imgMime = imgExt === 'png' ? 'image/png' : 
+                                  imgExt === 'gif' ? 'image/gif' : 'image/jpeg';
+                    
+                    const coverData = await imageFile.async('base64');
+                    return `data:${imgMime};base64,${coverData}`;
+                }
+                
+                return null;
+            }
+            
+            // 处理普通图片文件
             const mimeType = extension === 'png' ? 'image/png' : 
                            extension === 'gif' ? 'image/gif' : 'image/jpeg';
             
