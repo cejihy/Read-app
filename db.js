@@ -2,7 +2,7 @@
 class ReaderDataStore {
     constructor() {
         this.dbName = 'ReaderDB';
-        this.dbVersion = 10; // 增加版本号
+        this.dbVersion = 11; // 增加版本号
         this.db = null;
     }
 
@@ -354,80 +354,92 @@ class ReaderDataStore {
     async saveBook(bookFile) {
         if (!this.db) await this.init();
         
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const transaction = this.db.transaction(['books'], 'readwrite');
-                    const store = transaction.objectStore('books');
-                    
-                    // 先检查是否已存在同名书籍
-                    const getRequest = store.get(bookFile.name);
-                    
-                    getRequest.onsuccess = () => {
-                        const existingBook = getRequest.result;
+        return new Promise(async (resolve, reject) => {
+            try {
+                // 计算文件哈希作为唯一标识
+                const fileHash = await this.calculateFileHash(bookFile);
+                console.log('计算文件哈希:', fileHash);
+                
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const transaction = this.db.transaction(['books'], 'readwrite');
+                        const store = transaction.objectStore('books');
                         
-                        if (existingBook) {
-                            // 如果书籍已存在，更新最后阅读时间
-                            console.log('书籍已存在，更新阅读时间:', bookFile.name);
-                            existingBook.lastRead = Date.now();
-                            existingBook.lastModified = bookFile.lastModified;
+                        // 使用哈希值检查是否已存在相同书籍
+                        const getRequest = store.get(fileHash);
+                        
+                        getRequest.onsuccess = () => {
+                            const existingBook = getRequest.result;
                             
-                            const updateRequest = store.put(existingBook);
-                            updateRequest.onsuccess = () => {
-                                console.log('书籍阅读时间更新成功:', bookFile.name);
-                                resolve();
-                            };
-                            updateRequest.onerror = () => {
-                                console.error('更新书籍失败:', updateRequest.error);
-                                reject(updateRequest.error);
-                            };
-                        } else {
-                            // 如果书籍不存在，创建新记录
-                            const bookData = {
-                                name: bookFile.name,
-                                size: bookFile.size,
-                                lastModified: bookFile.lastModified,
-                                lastRead: Date.now(),
-                                data: e.target.result
-                            };
-                            
-                            console.log('保存新书籍数据:', {
-                                name: bookData.name,
-                                size: bookData.size,
-                                dataLength: bookData.data ? bookData.data.length : 0
-                            });
-                            
-                            const putRequest = store.put(bookData);
-                            
-                            putRequest.onsuccess = () => {
-                                console.log('书籍保存成功:', bookFile.name);
-                                resolve();
-                            };
-                            
-                            putRequest.onerror = () => {
-                                console.error('保存书籍失败:', putRequest.error);
-                                reject(putRequest.error);
-                            };
-                        }
-                    };
-                    
-                    getRequest.onerror = () => {
-                        console.error('检查书籍失败:', getRequest.error);
-                        reject(getRequest.error);
-                    };
-                } catch (error) {
-                    console.error('保存书籍失败:', error);
-                    reject(error);
-                }
-            };
-            
-            reader.onerror = () => {
-                console.error('读取书籍文件失败:', reader.error);
-                reject(reader.error);
-            };
-            
-            reader.readAsDataURL(bookFile);
+                            if (existingBook) {
+                                // 如果书籍已存在，更新最后阅读时间和文件名
+                                console.log('书籍已存在，更新阅读时间:', bookFile.name);
+                                existingBook.lastRead = Date.now();
+                                existingBook.lastModified = bookFile.lastModified;
+                                existingBook.name = bookFile.name; // 更新显示名称
+                                
+                                const updateRequest = store.put(existingBook);
+                                updateRequest.onsuccess = () => {
+                                    console.log('书籍阅读时间更新成功:', bookFile.name);
+                                    resolve(fileHash); // 返回哈希值
+                                };
+                                updateRequest.onerror = () => {
+                                    console.error('更新书籍失败:', updateRequest.error);
+                                    reject(updateRequest.error);
+                                };
+                            } else {
+                                // 如果书籍不存在，创建新记录
+                                const bookData = {
+                                    id: fileHash, // 使用哈希作为主键
+                                    name: bookFile.name,
+                                    size: bookFile.size,
+                                    lastModified: bookFile.lastModified,
+                                    lastRead: Date.now(),
+                                    data: e.target.result
+                                };
+                                
+                                console.log('保存新书籍数据:', {
+                                    id: bookData.id,
+                                    name: bookData.name,
+                                    size: bookData.size,
+                                    dataLength: bookData.data ? bookData.data.length : 0
+                                });
+                                
+                                const putRequest = store.put(bookData);
+                                
+                                putRequest.onsuccess = () => {
+                                    console.log('书籍保存成功:', bookFile.name);
+                                    resolve(fileHash); // 返回哈希值
+                                };
+                                
+                                putRequest.onerror = () => {
+                                    console.error('保存书籍失败:', putRequest.error);
+                                    reject(putRequest.error);
+                                };
+                            }
+                        };
+                        
+                        getRequest.onerror = () => {
+                            console.error('检查书籍失败:', getRequest.error);
+                            reject(getRequest.error);
+                        };
+                    } catch (error) {
+                        console.error('保存书籍失败:', error);
+                        reject(error);
+                    }
+                };
+                
+                reader.onerror = () => {
+                    console.error('读取书籍文件失败:', reader.error);
+                    reject(reader.error);
+                };
+                
+                reader.readAsDataURL(bookFile);
+            } catch (error) {
+                console.error('计算文件哈希失败:', error);
+                reject(error);
+            }
         });
     }
 
