@@ -969,6 +969,12 @@
                 <div class="settings-section-title">标记管理</div>
                 <div class="mark-settings">
                     <div class="setting-row">
+                        <span class="setting-label">标记数据</span>
+                        <div class="control-group">
+                            <span id="marks-storage-info" style="color: #666; font-size: 14px;">计算中...</span>
+                        </div>
+                    </div>
+                    <div class="setting-row" style="margin-top: 16px;">
                         <span class="setting-label">导出标记数据</span>
                         <div class="control-group">
                             <button class="control-btn" id="export-marks-btn" style="background: #28a745; color: white; border: 1px solid #28a745;">导出</button>
@@ -999,6 +1005,55 @@
                     </div>
                     <div style="margin-top: 8px; font-size: 12px; color: #666;">
                         删除所有标记数据（不可恢复）
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">书籍管理</div>
+                <div class="book-settings">
+                    <div class="setting-row">
+                        <span class="setting-label">书籍数据</span>
+                        <div class="control-group">
+                            <span id="books-storage-info" style="color: #666; font-size: 14px;">计算中...</span>
+                        </div>
+                    </div>
+                    <div class="setting-row" style="margin-top: 16px;">
+                        <span class="setting-label">当前书籍</span>
+                        <div class="control-group">
+                            <span id="current-book-name" style="color: #666; font-size: 14px;">未加载书籍</span>
+                        </div>
+                    </div>
+                    <div class="setting-row" style="margin-top: 16px;">
+                        <span class="setting-label">删除当前书籍</span>
+                        <div class="control-group">
+                            <button class="control-btn" id="delete-current-book-btn" style="background: #dc3545; color: white; border: 1px solid #dc3545;">删除</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                        删除当前正在阅读的书籍（不可恢复）
+                    </div>
+                    
+                    <div class="setting-row" style="margin-top: 16px;">
+                        <span class="setting-label">清空所有书籍</span>
+                        <div class="control-group">
+                            <button class="control-btn" id="clear-all-books-btn" style="background: #dc3545; color: white; border: 1px solid #dc3545;">清空</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                        删除所有已保存的书籍（不可恢复）
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">存储信息</div>
+                <div class="storage-settings">
+                    <div class="setting-row">
+                        <span class="setting-label">总存储大小</span>
+                        <div class="control-group">
+                            <span id="total-storage-info" style="color: #666; font-size: 14px;">计算中...</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1129,6 +1184,12 @@
                 currentBookFileName = file.name;
                 console.log('设置当前文件名:', currentBookFileName);
                 
+                // 更新设置面板中的当前书籍名称显示
+                const currentBookNameElement = document.getElementById('current-book-name');
+                if (currentBookNameElement) {
+                    currentBookNameElement.textContent = currentBookFileName;
+                }
+                
                                  // 保存书籍到数据库（除非跳过保存）
                  if (!skipSave) {
                      try {
@@ -1196,8 +1257,11 @@
                 const loading = document.getElementById('loading');
                 loading.textContent = '加载中...';
                 
-                                 // 重新绑定键盘事件
-                 document.addEventListener('keyup', handleKeyPress);
+                                                 // 重新绑定键盘事件
+                document.addEventListener('keyup', handleKeyPress);
+                
+                // 更新存储信息显示
+                await updateStorageInfo();
                  
                  
                 
@@ -2803,6 +2867,10 @@
             addButtonEvent('export-marks-btn', exportMarksData);
             addButtonEvent('clear-marks-btn', clearAllMarks);
             
+            // 书籍管理功能
+            addButtonEvent('delete-current-book-btn', deleteCurrentBook);
+            addButtonEvent('clear-all-books-btn', clearAllBooks);
+            
             // 导入文件监听 - 增强移动设备支持
             const fileInput = document.getElementById('import-marks-input');
             fileInput.addEventListener('change', importMarksData);
@@ -3068,12 +3136,13 @@
                 // 检查是否有上次阅读的书籍
                 checkLastReadBook();
                 
-                                 // 初始化标记数据
-                 await initMarkData();
-                 
-                 
-                 
-                 console.log('应用初始化完成');
+                                                 // 初始化标记数据
+                await initMarkData();
+                
+                // 更新存储信息显示
+                await updateStorageInfo();
+                
+                console.log('应用初始化完成');
             } catch (error) {
                 console.error('应用初始化失败:', error);
             }
@@ -3087,6 +3156,11 @@
                 
                 if (lastReadBook) {
                     console.log('找到最近阅读的书籍:', lastReadBook.name);
+                    // 更新设置面板中的当前书籍名称显示
+                    const currentBookNameElement = document.getElementById('current-book-name');
+                    if (currentBookNameElement) {
+                        currentBookNameElement.textContent = lastReadBook.name;
+                    }
                     // 直接自动加载上次的书籍
                     await autoLoadLastBook();
                 } else {
@@ -3149,6 +3223,12 @@
                 // 加载书籍（跳过保存，因为书籍已经在数据库中）
                 await loadBook(bookFile, true);
                 
+                // 更新设置面板中的当前书籍名称显示
+                const currentBookNameElement = document.getElementById('current-book-name');
+                if (currentBookNameElement) {
+                    currentBookNameElement.textContent = lastReadBook.name;
+                }
+                
             } catch (error) {
                 console.error('自动加载书籍失败:', error);
                 showDefaultEmptyState();
@@ -3170,7 +3250,20 @@
         
         // 错误边界处理
         window.addEventListener('error', (event) => {
+            // 忽略ResizeObserver的警告，这是浏览器的无害警告
+            if (event.message && event.message.includes('ResizeObserver loop completed with undelivered notifications')) {
+                return;
+            }
+            
             console.error('全局错误:', event.error);
+            console.error('错误详情:', {
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                error: event.error,
+                stack: event.error ? event.error.stack : '无堆栈信息'
+            });
             // 可以在这里添加错误上报逻辑
         });
 
@@ -3447,6 +3540,9 @@
                 await initMarkData();
                 updateMarkList();
                 
+                // 更新存储信息显示
+                await updateStorageInfo();
+                
                 console.log('标记数据导入成功');
                 alert('标记数据导入成功！');
                 
@@ -3456,6 +3552,57 @@
             } finally {
                 // 清空文件输入
                 event.target.value = '';
+            }
+        }
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 更新存储信息显示
+        async function updateStorageInfo() {
+            try {
+                console.log('开始更新存储信息...');
+                const storageInfo = await dataStore.getStorageInfo();
+                
+                // 更新标记数据信息
+                const marksTotalSize = (storageInfo.marks?.size || 0) + (storageInfo.markGroups?.size || 0);
+                const marksTotalCount = (storageInfo.marks?.count || 0) + (storageInfo.markGroups?.count || 0);
+                const marksElement = document.getElementById('marks-storage-info');
+                if (marksElement) {
+                    marksElement.textContent = `${marksTotalCount} 项，${formatFileSize(marksTotalSize)}`;
+                }
+                
+                // 更新书籍数据信息
+                const booksTotalSize = (storageInfo.books?.size || 0) + (storageInfo.bookmarks?.size || 0);
+                const booksTotalCount = (storageInfo.books?.count || 0) + (storageInfo.bookmarks?.count || 0);
+                const booksElement = document.getElementById('books-storage-info');
+                if (booksElement) {
+                    booksElement.textContent = `${booksTotalCount} 项，${formatFileSize(booksTotalSize)}`;
+                }
+                
+                // 更新总存储信息
+                const totalElement = document.getElementById('total-storage-info');
+                if (totalElement) {
+                    totalElement.textContent = `${storageInfo.total.count} 项，${formatFileSize(storageInfo.total.size)}`;
+                }
+                
+                console.log('存储信息更新完成:', storageInfo);
+            } catch (error) {
+                console.error('更新存储信息失败:', error);
+                // 显示错误状态
+                const marksElement = document.getElementById('marks-storage-info');
+                const booksElement = document.getElementById('books-storage-info');
+                const totalElement = document.getElementById('total-storage-info');
+                
+                if (marksElement) marksElement.textContent = '获取失败';
+                if (booksElement) booksElement.textContent = '获取失败';
+                if (totalElement) totalElement.textContent = '获取失败';
             }
         }
 
@@ -3486,12 +3633,162 @@
                 // 更新界面
                 updateMarkList();
                 
+                // 更新存储信息显示
+                await updateStorageInfo();
+                
                 console.log('所有标记数据已清空');
                 alert('所有标记数据已清空！');
                 
             } catch (error) {
                 console.error('清空标记数据失败:', error);
                 alert('清空失败：' + error.message);
+            }
+        }
+
+        // 删除当前书籍
+        async function deleteCurrentBook() {
+            console.log('开始删除当前书籍:', currentBookFileName);
+            
+            if (!currentBookFileName) {
+                alert('当前没有加载的书籍');
+                return;
+            }
+            
+            if (!confirm(`确定要删除书籍"${currentBookFileName}"吗？此操作不可恢复！`)) {
+                return;
+            }
+            
+            try {
+                console.log('确认删除，开始执行删除操作');
+                
+                // 确保数据库已初始化
+                if (!dataStore.db) {
+                    console.log('数据库未初始化，正在初始化...');
+                    await dataStore.init();
+                }
+                
+                console.log('调用dataStore.deleteBook...');
+                // 删除书籍
+                await dataStore.deleteBook(currentBookFileName);
+                console.log('dataStore.deleteBook执行完成');
+                
+                // 清空当前书籍状态
+                console.log('清空书籍状态...');
+                currentBookFileName = null;
+                if (book) {
+                    book = null;
+                }
+                if (rendition) {
+                    rendition = null;
+                }
+                
+                // 更新界面显示
+                console.log('更新界面显示...');
+                const currentBookNameElement = document.getElementById('current-book-name');
+                if (currentBookNameElement) {
+                    currentBookNameElement.textContent = '未加载书籍';
+                }
+                
+                // 清空阅读器
+                const viewer = document.getElementById('viewer');
+                if (viewer) {
+                    viewer.innerHTML = '<div class="empty-state">请选择书籍文件</div>';
+                }
+                
+                // 更新存储信息显示
+                await updateStorageInfo();
+                
+                console.log('当前书籍删除成功');
+                alert('书籍删除成功！');
+                
+            } catch (error) {
+                console.error('删除当前书籍失败:', error);
+                console.error('错误堆栈:', error.stack);
+                alert('删除失败：' + error.message);
+            }
+        }
+
+        // 清空所有书籍
+        async function clearAllBooks() {
+            console.log('开始清空所有书籍');
+            
+            if (!confirm('确定要删除所有已保存的书籍吗？此操作不可恢复！')) {
+                return;
+            }
+            
+            try {
+                console.log('确认清空，开始执行操作');
+                
+                // 确保数据库已初始化
+                if (!dataStore.db) {
+                    console.log('数据库未初始化，正在初始化...');
+                    await dataStore.init();
+                }
+                
+                console.log('创建数据库事务...');
+                // 获取所有书籍并删除
+                const transaction = dataStore.db.transaction(['books'], 'readwrite');
+                const store = transaction.objectStore('books');
+                
+                console.log('开始清空书籍存储...');
+                const request = store.clear();
+                
+                request.onsuccess = async () => {
+                    console.log('清空操作成功');
+                    
+                    // 清空当前书籍状态
+                    console.log('清空书籍状态...');
+                    currentBookFileName = null;
+                    if (book) {
+                        book = null;
+                    }
+                    if (rendition) {
+                        rendition = null;
+                    }
+                    
+                    // 更新界面显示
+                    console.log('更新界面显示...');
+                    const currentBookNameElement = document.getElementById('current-book-name');
+                    if (currentBookNameElement) {
+                        currentBookNameElement.textContent = '未加载书籍';
+                    }
+                    
+                    // 清空阅读器
+                    const viewer = document.getElementById('viewer');
+                    if (viewer) {
+                        viewer.innerHTML = '<div class="empty-state">请选择书籍文件</div>';
+                    }
+                    
+                    // 更新存储信息显示
+                    await updateStorageInfo();
+                    
+                    console.log('所有书籍删除成功');
+                    alert('所有书籍删除成功！');
+                };
+                
+                request.onerror = () => {
+                    console.error('清空所有书籍失败:', request.error);
+                    console.error('错误详情:', {
+                        name: request.error.name,
+                        message: request.error.message,
+                        code: request.error.code
+                    });
+                    alert('删除失败：' + request.error.message);
+                };
+                
+                // 添加事务完成事件监听
+                transaction.oncomplete = () => {
+                    console.log('清空事务完成');
+                };
+                
+                transaction.onerror = () => {
+                    console.error('清空事务失败:', transaction.error);
+                };
+                
+            } catch (error) {
+                console.error('清空所有书籍失败:', error);
+                console.error('错误堆栈:', error.stack);
+                alert('删除失败：' + error.message);
             }
         }
     </script>
