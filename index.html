@@ -2650,37 +2650,37 @@
             const editContent = document.createElement('div');
             editContent.style.cssText = `
                 background: white;
-                padding: 20px;
+                padding: 16px;
                 border-radius: 12px;
-                width: 90%;
-                max-width: 450px;
-                max-height: 85vh;
+                width: 95%;
+                max-width: 400px;
+                max-height: 80vh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
             `;
             
             editContent.innerHTML = `
-                <h3 style="margin: 0 0 20px 0; color: #333;">${modalTitle}</h3>
+                <h3 style="margin: 0 0 16px 0; color: #333; font-size: 18px;">${modalTitle}</h3>
                 
                 <!-- 图片区域 - 主要元素 -->
-                <div style="margin-bottom: 20px; text-align: center;">
+                <div style="margin-bottom: 16px; text-align: center;">
                     <div id="edit-image-preview" style="
-                        margin-bottom: 12px;
-                        min-height: 180px;
-                        max-height: 250px;
+                        margin-bottom: 10px;
+                        min-height: 140px;
+                        max-height: 200px;
                         display: flex;
                         align-items: center;
                         justify-content: center;
                         background: #f8f9fa;
                         border: 2px dashed #dee2e6;
-                        border-radius: 12px;
+                        border-radius: 8px;
                         transition: all 0.3s ease;
                         overflow: hidden;
                     ">
                         ${currentImage ? 
                             `<img src="${currentImage}" style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer; object-fit: contain;" onclick="showLargeImage('${currentImage}')" title="点击查看大图">` : 
-                            `<div style="color: #999; font-size: 14px;">
-                                <div style="font-size: 40px; margin-bottom: 6px;">📷</div>
+                            `<div style="color: #999; font-size: 12px;">
+                                <div style="font-size: 32px; margin-bottom: 4px;">📷</div>
                                 <div>点击下方按钮选择图片</div>
                             </div>`
                         }
@@ -2693,8 +2693,8 @@
                             color: #6c757d;
                             border: 1px solid #dee2e6;
                             border-radius: 6px;
-                            padding: 8px 14px;
-                            font-size: 13px;
+                            padding: 6px 12px;
+                            font-size: 12px;
                             cursor: pointer;
                             transition: all 0.15s ease;
                             user-select: none;
@@ -2706,8 +2706,8 @@
                             color: #6c757d;
                             border: 1px solid #dee2e6;
                             border-radius: 6px;
-                            padding: 8px 14px;
-                            font-size: 13px;
+                            padding: 6px 12px;
+                            font-size: 12px;
                             cursor: pointer;
                             transition: all 0.15s ease;
                             user-select: none;
@@ -2718,42 +2718,42 @@
                 </div>
                 
                 <!-- 标记词区域 -->
-                <div style="margin-bottom: 12px;">
-                    <label style="display: block; margin-bottom: 6px; color: #555; font-weight: 500; font-size: 14px;">标记词</label>
+                <div style="margin-bottom: 10px;">
+                    <label style="display: block; margin-bottom: 4px; color: #555; font-weight: 500; font-size: 13px;">标记词</label>
                     <input type="text" id="edit-words-input" value="${groupWords.join('、')}" style="
                         width: 100%;
-                        padding: 10px;
+                        padding: 8px;
                         border: 1px solid #ddd;
-                        border-radius: 8px;
-                        font-size: 14px;
+                        border-radius: 6px;
+                        font-size: 13px;
                         box-sizing: border-box;
                     " placeholder="输入标记词，用顿号分隔">
                 </div>
                 
                 <!-- 标记内容区域 -->
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 6px; color: #555; font-weight: 500; font-size: 14px;">标记内容</label>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 4px; color: #555; font-weight: 500; font-size: 13px;">标记内容</label>
                     <textarea id="edit-note-input" style="
                         width: 100%;
-                        padding: 10px;
+                        padding: 8px;
                         border: 1px solid #ddd;
-                        border-radius: 8px;
-                        font-size: 14px;
+                        border-radius: 6px;
+                        font-size: 13px;
                         box-sizing: border-box;
-                        min-height: 60px;
-                        max-height: 120px;
+                        min-height: 50px;
+                        max-height: 100px;
                         resize: vertical;
                     " placeholder="输入标记内容（可选）">${currentNote}</textarea>
                 </div>
                 
-                                 <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+                                 <div style="display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap;">
                      ${!isNewGroup ? `<button onclick="deleteEditGroup('${groupId}')" style="
                          background: #f8f9fa;
                          color: #6c757d;
                          border: 1px solid #dee2e6;
                          border-radius: 6px;
-                         padding: 8px 16px;
-                         font-size: 13px;
+                         padding: 6px 12px;
+                         font-size: 12px;
                          cursor: pointer;
                          transition: all 0.15s ease;
                          user-select: none;
@@ -2765,8 +2765,8 @@
                          color: #6c757d;
                          border: 1px solid #dee2e6;
                          border-radius: 6px;
-                         padding: 8px 16px;
-                         font-size: 13px;
+                         padding: 6px 12px;
+                         font-size: 12px;
                          cursor: pointer;
                          transition: all 0.15s ease;
                          user-select: none;
@@ -2778,8 +2778,8 @@
                          color: #6c757d;
                          border: 1px solid #dee2e6;
                          border-radius: 6px;
-                         padding: 8px 16px;
-                         font-size: 13px;
+                         padding: 6px 12px;
+                         font-size: 12px;
                          cursor: pointer;
                          transition: all 0.15s ease;
                          user-select: none;
@@ -2799,8 +2799,8 @@
                     try {
                         // 显示加载状态
                         document.getElementById('edit-image-preview').innerHTML = `
-                            <div style="color: #999; font-size: 14px; text-align: center;">
-                                <div style="font-size: 24px; margin-bottom: 8px;">⏳</div>
+                            <div style="color: #999; font-size: 12px; text-align: center;">
+                                <div style="font-size: 20px; margin-bottom: 6px;">⏳</div>
                                 <div>正在压缩图片...</div>
                             </div>
                         `;
