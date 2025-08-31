@@ -1359,7 +1359,7 @@
     <!-- 顶部栏 -->
     <div class="header">
                  <div class="header-left">
-             <input type="file" id="file-input" class="file-input" accept=".epub" multiple="false" />
+             <input type="file" id="file-input" class="file-input" accept=".epub" />
              <button class="upload-btn" onclick="showBookshelf()">
                  📚 我的书架
              </button>
@@ -1637,11 +1637,17 @@
         // 翻页按钮事件
         function addButtonEvent(buttonId, handler) {
             const button = document.getElementById(buttonId);
-            button.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                handler();
-            });
-            button.addEventListener('click', handler);
+            if (button) {
+                // 移动设备优化：使用 touchend 而不是 touchstart
+                button.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handler();
+                }, { passive: false });
+                
+                // 桌面设备
+                button.addEventListener('click', handler);
+            }
         }
 
         addButtonEvent('prev-btn', prevPage);
@@ -1683,6 +1689,42 @@
                    (window.innerWidth <= 768);
         }
 
+        // 移动设备文件选择
+        function triggerMobileFileSelect() {
+            console.log('移动设备文件选择...');
+            
+            // 创建新的文件输入元素
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.epub';
+            input.style.position = 'fixed';
+            input.style.top = '50%';
+            input.style.left = '50%';
+            input.style.transform = 'translate(-50%, -50%)';
+            input.style.width = '1px';
+            input.style.height = '1px';
+            input.style.opacity = '0';
+            input.style.zIndex = '9999';
+            document.body.appendChild(input);
+            
+            // 添加事件监听器
+            input.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files[0]) {
+                    console.log('移动设备选择文件:', e.target.files[0].name);
+                    loadBook(e.target.files[0]);
+                }
+                // 清理元素
+                setTimeout(() => {
+                    if (document.body.contains(input)) {
+                        document.body.removeChild(input);
+                    }
+                }, 100);
+            });
+            
+            // 触发文件选择
+            input.click();
+        }
+
         // 触发文件选择
         function triggerFileSelect() {
             try {
@@ -1690,71 +1732,29 @@
                 const isMobile = isMobileDevice();
                 console.log('是否为移动设备:', isMobile);
                 
+                // 移动设备使用专门的处理函数
+                if (isMobile) {
+                    triggerMobileFileSelect();
+                    return;
+                }
+                
+                // 桌面设备使用原有逻辑
                 const fileInput = document.getElementById('file-input');
                 if (fileInput) {
                     console.log('找到文件输入元素');
                     // 重置文件输入，确保能重复选择同一文件
                     fileInput.value = '';
                     
-                    // 移动设备特殊处理
-                    if (isMobile) {
-                        // 确保文件输入可见且可交互
-                        fileInput.style.position = 'fixed';
-                        fileInput.style.top = '0';
-                        fileInput.style.left = '0';
-                        fileInput.style.width = '100%';
-                        fileInput.style.height = '100%';
-                        fileInput.style.opacity = '0';
-                        fileInput.style.zIndex = '9999';
-                        fileInput.style.pointerEvents = 'auto';
-                    }
-                    
                     // 触发文件选择
                     fileInput.click();
                     console.log('文件选择已触发');
-                    
-                    // 移动设备处理完成后恢复样式
-                    if (isMobile) {
-                        setTimeout(() => {
-                            fileInput.style.position = 'absolute';
-                            fileInput.style.top = 'auto';
-                            fileInput.style.left = 'auto';
-                            fileInput.style.width = '1px';
-                            fileInput.style.height = '1px';
-                            fileInput.style.opacity = '0';
-                            fileInput.style.zIndex = 'auto';
-                            fileInput.style.pointerEvents = 'none';
-                        }, 1000);
-                    }
                 } else {
                     console.error('文件输入元素不存在');
                 }
             } catch (error) {
                 console.error('触发文件选择失败:', error);
-                // 备用方案：尝试直接创建文件输入
-                console.log('使用备用文件选择方案...');
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.epub';
-                input.multiple = false;
-                input.style.position = 'fixed';
-                input.style.top = '0';
-                input.style.left = '0';
-                input.style.width = '100%';
-                input.style.height = '100%';
-                input.style.opacity = '0';
-                input.style.zIndex = '9999';
-                document.body.appendChild(input);
-                
-                input.addEventListener('change', function(e) {
-                    if (e.target.files && e.target.files[0]) {
-                        console.log('备用方案选择文件:', e.target.files[0].name);
-                        loadBook(e.target.files[0]);
-                    }
-                    document.body.removeChild(input);
-                });
-                
-                input.click();
+                // 备用方案：使用移动设备函数
+                triggerMobileFileSelect();
             }
         }
 
@@ -4080,6 +4080,22 @@
                 const isCurrent = bookName === currentBookFileName;
                 console.log(`书籍 ${index + 1}: ${bookName}, 是否当前: ${isCurrent}`);
             });
+        };
+
+        // 测试移动设备文件选择
+        window.testMobileFileSelect = function() {
+            console.log('=== 测试移动设备文件选择 ===');
+            const isMobile = isMobileDevice();
+            console.log('设备检测结果:', isMobile ? '移动设备' : '桌面设备');
+            console.log('用户代理:', navigator.userAgent);
+            
+            if (isMobile) {
+                console.log('使用移动设备文件选择...');
+                triggerMobileFileSelect();
+            } else {
+                console.log('使用桌面设备文件选择...');
+                triggerFileSelect();
+            }
         };
 
         // 全局封面刷新功能（用于调试）
