@@ -564,10 +564,7 @@
             transform: translateY(-2px);
         }
 
-        .book-item.grid-item.current .book-cover,
-        .book-item.grid-item.current .book-icon {
-            border: 3px solid #2196f3;
-        }
+
 
         .book-item.grid-item .book-cover {
             width: 100px;
@@ -688,10 +685,7 @@
             box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
         }
 
-        .book-item.current {
-            background: #e3f2fd;
-            border-color: #2196f3;
-        }
+
 
         .book-cover {
             width: 60px;
@@ -1786,6 +1780,14 @@
 
         async function loadBook(file, skipSave = false) {
             try {
+                console.log('=== 开始加载书籍 ===');
+                console.log('文件信息:', {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    lastModified: file.lastModified
+                });
+                
                 showLoading(true);
                 hideEmptyState();
                 
@@ -1828,15 +1830,22 @@
                 rendition = null;
                 
                 // 创建新的book和rendition
+                console.log('创建ePub对象...');
                 book = ePub(file);
+                console.log('ePub对象创建成功');
+                
+                console.log('创建rendition...');
                 rendition = book.renderTo("viewer", {
                     width: "100%",
                     height: "100%",
                     allowScriptedContent: true
                 });
+                console.log('rendition创建成功');
 
-                                 // 直接显示第一页
-                 await rendition.display();
+                // 直接显示第一页
+                console.log('显示第一页...');
+                await rendition.display();
+                console.log('第一页显示成功');
                 
 
                 
@@ -1866,7 +1875,7 @@
                  document.addEventListener('keyup', handleKeyPress);
                  
                 // 更新书架显示（书籍加载后需要更新当前书籍状态）
-                renderBookshelf();
+                await updateBookshelf();
                  
                  
                 
@@ -1899,8 +1908,10 @@
 
 
             } catch (error) {
-                console.error('加载失败:', error);
-                alert('文件加载失败');
+                console.error('=== 书籍加载失败 ===');
+                console.error('错误详情:', error);
+                console.error('错误堆栈:', error.stack);
+                alert('文件加载失败: ' + error.message);
                 showLoading(false);
                 showEmptyState();
             }
@@ -2371,12 +2382,8 @@
             if (savedMode !== currentViewMode) {
                 switchViewMode(savedMode);
             } else {
-                // 如果有缓存数据，直接渲染；否则获取数据
-                if (cachedBooks.length > 0) {
-                    renderBookshelf();
-                } else {
-                    updateBookshelf();
-                }
+                // 总是更新书架数据，确保显示最新内容
+                updateBookshelf();
             }
         }
 
@@ -3962,6 +3969,119 @@
             }
         };
 
+        // 测试添加书籍功能
+        window.testAddBook = function() {
+            console.log('=== 测试添加书籍功能 ===');
+            console.log('触发文件选择...');
+            triggerFileSelect();
+        };
+
+        // 测试文件选择监听
+        window.testFileInput = function() {
+            console.log('=== 测试文件输入元素 ===');
+            const fileInput = document.getElementById('file-input');
+            if (fileInput) {
+                console.log('文件输入元素存在');
+                console.log('文件输入属性:', {
+                    type: fileInput.type,
+                    accept: fileInput.accept,
+                    multiple: fileInput.multiple,
+                    style: fileInput.style.cssText
+                });
+            } else {
+                console.error('文件输入元素不存在');
+            }
+        };
+
+        // 综合诊断功能
+        window.diagnoseAddBook = function() {
+            console.log('=== 添加书籍功能诊断 ===');
+            
+            // 检查epub.js库
+            if (typeof ePub === 'undefined') {
+                console.error('❌ epub.js库未加载');
+            } else {
+                console.log('✅ epub.js库已加载');
+            }
+            
+            // 检查dataStore
+            if (typeof dataStore === 'undefined') {
+                console.error('❌ dataStore未定义');
+            } else {
+                console.log('✅ dataStore已定义');
+            }
+            
+            // 检查文件输入元素
+            const fileInput = document.getElementById('file-input');
+            if (!fileInput) {
+                console.error('❌ 文件输入元素不存在');
+            } else {
+                console.log('✅ 文件输入元素存在');
+            }
+            
+            // 检查添加书籍按钮
+            const addBookBtn = document.querySelector('[onclick="showBookshelf()"]');
+            if (!addBookBtn) {
+                console.error('❌ 添加书籍按钮不存在');
+            } else {
+                console.log('✅ 添加书籍按钮存在');
+            }
+            
+            // 检查是否为移动设备
+            const isMobile = isMobileDevice();
+            console.log('设备类型:', isMobile ? '移动设备' : '桌面设备');
+            
+            // 检查浏览器支持
+            console.log('浏览器信息:', navigator.userAgent);
+            console.log('支持File API:', 'File' in window);
+            console.log('支持FileReader API:', 'FileReader' in window);
+        };
+
+        // 测试书架更新功能
+        window.testBookshelfUpdate = async function() {
+            console.log('=== 测试书架更新功能 ===');
+            console.log('当前缓存书籍数量:', cachedBooks.length);
+            
+            // 重新获取书籍数据
+            const books = await dataStore.getAllBooks();
+            console.log('数据库中的书籍数量:', books.length);
+            console.log('书籍列表:', books.map(b => b.name));
+            
+            // 更新缓存
+            cachedBooks = books;
+            
+            // 重新渲染书架
+            renderBookshelf();
+            console.log('书架更新完成');
+        };
+
+        // 检查当前书籍高亮
+        window.checkCurrentBookHighlight = function() {
+            console.log('=== 检查当前书籍高亮 ===');
+            console.log('当前书籍文件名:', currentBookFileName);
+            
+            const currentBookElements = document.querySelectorAll('.book-item.current');
+            console.log('当前书籍元素数量:', currentBookElements.length);
+            
+            currentBookElements.forEach((element, index) => {
+                console.log(`当前书籍元素 ${index + 1}:`, {
+                    className: element.className,
+                    dataBookName: element.getAttribute('data-book-name'),
+                    computedStyle: window.getComputedStyle(element)
+                });
+            });
+            
+            // 检查所有书籍元素
+            const allBookElements = document.querySelectorAll('.book-item');
+            console.log('所有书籍元素数量:', allBookElements.length);
+            
+            allBookElements.forEach((element, index) => {
+                const bookName = element.getAttribute('data-book-name');
+                const isCurrent = bookName === currentBookFileName;
+                console.log(`书籍 ${index + 1}: ${bookName}, 是否当前: ${isCurrent}`);
+            });
+        };
+
         // 全局封面刷新功能（用于调试）
         window.refreshAllCovers = async function() {
             try {
@@ -4333,12 +4453,14 @@
                 // 获取所有书籍
                 const books = await dataStore.getAllBooks();
                 console.log('获取到书籍:', books.length, '本');
+                console.log('书籍列表:', books.map(b => b.name));
                 
                 // 缓存书籍数据
                 cachedBooks = books;
                 
                 // 渲染书架
                 renderBookshelf();
+                console.log('书架更新完成');
                 
             } catch (error) {
                 console.error('更新书架失败:', error);
@@ -4374,7 +4496,7 @@
                             if (currentViewMode === 'grid') {
                                 // 网格模式：只显示封面
                                 return `
-                                    <div class="book-item ${gridClass} ${isCurrent ? 'current' : ''}" onclick="openBook('${book.name}')" data-book-name="${book.name}" title="${book.name}">
+                                    <div class="book-item ${gridClass}" onclick="openBook('${book.name}')" data-book-name="${book.name}" title="${book.name}">
                                         <div class="book-checkbox" onclick="event.stopPropagation(); toggleBookSelection('${book.name}')"></div>
                                         ${coverHtml}
                                         <div class="book-icon" ${book.coverData ? 'style="display: flex;"' : ''}>📖</div>
@@ -4383,7 +4505,7 @@
                             } else {
                                 // 列表模式：显示完整信息
                                 return `
-                                    <div class="book-item ${gridClass} ${isCurrent ? 'current' : ''}" onclick="openBook('${book.name}')" data-book-name="${book.name}">
+                                    <div class="book-item ${gridClass}" onclick="openBook('${book.name}')" data-book-name="${book.name}">
                                         <div class="book-checkbox" onclick="event.stopPropagation(); toggleBookSelection('${book.name}')"></div>
                                         ${coverHtml}
                                         <div class="book-icon" ${book.coverData ? 'style="display: flex;"' : ''}>📖</div>
