@@ -414,6 +414,20 @@
             background: #ff5252;
         }
 
+        /* 验证数字样式 */
+        .verify-number {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 120px;
+            font-weight: bold;
+            color: #ff6b6b;
+            z-index: 999;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
         .mark-section {
             margin-bottom: 24px;
         }
@@ -932,6 +946,9 @@
         
         <!-- 浮动书签 -->
         <div class="floating-bookmark" id="floating-bookmark"></div>
+        
+        <!-- 验证数字 -->
+        <div class="verify-number">1</div>
         
         <!-- 遮罩层 -->
         <div class="overlay" id="overlay"></div>
