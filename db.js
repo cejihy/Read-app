@@ -396,14 +396,14 @@ class ReaderDataStore {
                                     size: bookFile.size,
                                     lastModified: bookFile.lastModified,
                                     lastRead: Date.now(),
-                                    data: e.target.result
+                                    fileData: e.target.result // 直接存储ArrayBuffer
                                 };
                                 
                                 console.log('保存新书籍数据:', {
                                     id: bookData.id,
                                     name: bookData.name,
                                     size: bookData.size,
-                                    dataLength: bookData.data ? bookData.data.length : 0
+                                    dataSize: bookData.fileData ? bookData.fileData.byteLength : 0
                                 });
                                 
                                 const putRequest = store.put(bookData);
@@ -435,7 +435,7 @@ class ReaderDataStore {
                     reject(reader.error);
                 };
                 
-                reader.readAsDataURL(bookFile);
+                reader.readAsArrayBuffer(bookFile); // 改为ArrayBuffer
             } catch (error) {
                 console.error('计算文件哈希失败:', error);
                 reject(error);
@@ -535,14 +535,18 @@ class ReaderDataStore {
                     bookData.lastRead = Date.now();
                     
                     // 如果存在旧的数据结构，尝试迁移
-                    if (bookData.fileData && !bookData.data) {
+                    if (bookData.data && !bookData.fileData) {
                         try {
                             console.log('迁移旧数据结构:', bookName);
-                            const arrayBuffer = bookData.fileData;
-                            const uint8Array = new Uint8Array(arrayBuffer);
-                            const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
-                            bookData.data = 'data:application/epub+zip;base64,' + btoa(binaryString);
-                            delete bookData.fileData; // 删除旧字段
+                            // 从Base64 Data URL转换为ArrayBuffer
+                            const base64Data = bookData.data.replace('data:application/epub+zip;base64,', '');
+                            const binaryString = atob(base64Data);
+                            const bytes = new Uint8Array(binaryString.length);
+                            for (let i = 0; i < binaryString.length; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
+                            bookData.fileData = bytes.buffer;
+                            delete bookData.data; // 删除旧字段
                             console.log('数据结构迁移完成');
                         } catch (error) {
                             console.error('数据结构迁移失败:', error);
