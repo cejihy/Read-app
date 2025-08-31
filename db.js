@@ -2,7 +2,7 @@
 class ReaderDataStore {
     constructor() {
         this.dbName = 'ReaderDB';
-        this.dbVersion = 11; // 增加版本号
+        this.dbVersion = 12; // 增加版本号以支持封面
         this.db = null;
     }
 
@@ -312,6 +312,219 @@ class ReaderDataStore {
 
 
 
+    // 提取EPUB封面
+    async extractCover(bookFile) {
+        try {
+            // 使用JSZip解压EPUB文件
+            const JSZip = window.JSZip;
+            if (!JSZip) {
+                console.warn('JSZip未加载，无法提取封面');
+                return null;
+            }
+
+            const zip = new JSZip();
+            await zip.loadAsync(bookFile);
+            
+            // 首先尝试简单方法：直接查找任何图片文件
+            console.log('尝试简单方法：直接查找图片文件');
+            const allFiles = Object.keys(zip.files);
+            
+            // 优化：只查找前20个文件，避免遍历整个EPUB
+            const limitedFiles = allFiles.slice(0, 20);
+            const imageFiles = limitedFiles.filter(file => 
+                /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file) && 
+                !file.includes('__MACOSX') && 
+                !file.includes('.DS_Store') &&
+                !file.includes('META-INF')
+            );
+            
+            if (imageFiles.length > 0) {
+                console.log('找到图片文件:', imageFiles);
+                // 优先选择包含cover、title、front等关键词的图片
+                const priorityImages = imageFiles.filter(file => 
+                    /cover|title|front|book/i.test(file)
+                );
+                
+                const selectedImage = priorityImages.length > 0 ? priorityImages[0] : imageFiles[0];
+                console.log('选择图片文件:', selectedImage);
+                
+                const imageFile = zip.file(selectedImage);
+                const extension = selectedImage.split('.').pop().toLowerCase();
+                const mimeType = extension === 'png' ? 'image/png' : 
+                               extension === 'gif' ? 'image/gif' : 'image/jpeg';
+                
+                const coverData = await imageFile.async('base64');
+                return `data:${mimeType};base64,${coverData}`;
+            }
+            
+            // 读取container.xml来找到OPF文件
+            const containerFile = zip.file('META-INF/container.xml');
+            if (!containerFile) {
+                console.warn('无法找到container.xml');
+                return null;
+            }
+            
+            const containerXml = await containerFile.async('string');
+            const opfMatch = containerXml.match(/full-path="([^"]+)"/);
+            if (!opfMatch) {
+                console.warn('无法找到OPF文件路径');
+                return null;
+            }
+            
+            const opfPath = opfMatch[1];
+            const opfFile = zip.file(opfPath);
+            if (!opfFile) {
+                console.warn('无法找到OPF文件:', opfPath);
+                return null;
+            }
+            
+            const opfContent = await opfFile.async('string');
+            
+            // 尝试多种方式查找封面
+            let coverHref = null;
+            console.log('开始查找封面，OPF内容长度:', opfContent.length);
+            
+            // 方法1: 查找meta标签中的cover
+            const coverMatch = opfContent.match(/<meta[^>]*name="cover"[^>]*content="([^"]+)"/);
+            if (coverMatch) {
+                console.log('找到meta cover标签:', coverMatch[1]);
+                const coverId = coverMatch[1];
+                const itemMatch = opfContent.match(new RegExp(`<item[^>]*id="${coverId}"[^>]*href="([^"]+)"`));
+                if (itemMatch) {
+                    coverHref = itemMatch[1];
+                    console.log('通过meta cover找到封面:', coverHref);
+                }
+            }
+            
+            // 方法2: 查找id包含cover的item
+            if (!coverHref) {
+                const coverItemMatch = opfContent.match(/<item[^>]*id="([^"]*cover[^"]*)"[^>]*href="([^"]+)"/);
+                if (coverItemMatch) {
+                    coverHref = coverItemMatch[2];
+                    console.log('通过id包含cover找到封面:', coverHref);
+                }
+            }
+            
+            // 方法3: 查找第一个图片文件
+            if (!coverHref) {
+                const imageMatch = opfContent.match(/<item[^>]*media-type="image\/(jpeg|png|gif)"[^>]*href="([^"]+)"/);
+                if (imageMatch) {
+                    coverHref = imageMatch[2];
+                    console.log('通过第一个图片文件找到封面:', coverHref);
+                }
+            }
+            
+            // 方法4: 查找所有图片文件，选择第一个
+            if (!coverHref) {
+                const allImages = opfContent.match(/<item[^>]*media-type="image\/[^"]*"[^>]*href="([^"]+)"/g);
+                if (allImages && allImages.length > 0) {
+                    const firstImageMatch = allImages[0].match(/href="([^"]+)"/);
+                    if (firstImageMatch) {
+                        coverHref = firstImageMatch[1];
+                        console.log('通过所有图片文件找到封面:', coverHref);
+                    }
+                }
+            }
+            
+            // 方法5: 查找所有item，寻找可能的封面
+            if (!coverHref) {
+                const allItems = opfContent.match(/<item[^>]*>/g);
+                if (allItems) {
+                    console.log('所有item数量:', allItems.length);
+                    for (const item of allItems) {
+                        // 查找包含cover、title、front等关键词的item
+                        if (item.includes('cover') || item.includes('title') || item.includes('front')) {
+                            const hrefMatch = item.match(/href="([^"]+)"/);
+                            if (hrefMatch) {
+                                coverHref = hrefMatch[1];
+                                console.log('通过关键词找到封面:', coverHref, 'item:', item);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (!coverHref) {
+                console.warn('无法找到封面文件，OPF内容片段:', opfContent.substring(0, 500));
+                return null;
+            }
+            
+            // 构建封面文件路径
+            const opfDir = opfPath.substring(0, opfPath.lastIndexOf('/') + 1);
+            const coverPath = opfDir + coverHref;
+            console.log('封面文件路径:', coverPath);
+            
+            const coverFile = zip.file(coverPath);
+            if (!coverFile) {
+                console.warn('无法找到封面文件:', coverPath);
+                
+                // 尝试不同的路径组合
+                const possiblePaths = [
+                    coverHref,
+                    opfDir + coverHref,
+                    coverHref.replace(/^\.\//, ''),
+                    coverHref.replace(/^\.\//, opfDir),
+                    'images/' + coverHref,
+                    'Images/' + coverHref,
+                    'image/' + coverHref,
+                    'Image/' + coverHref
+                ];
+                
+                for (const path of possiblePaths) {
+                    console.log('尝试路径:', path);
+                    const testFile = zip.file(path);
+                    if (testFile) {
+                        console.log('找到封面文件:', path);
+                        const extension = path.split('.').pop().toLowerCase();
+                        const mimeType = extension === 'png' ? 'image/png' : 
+                                       extension === 'gif' ? 'image/gif' : 'image/jpeg';
+                        
+                        const coverData = await testFile.async('base64');
+                        return `data:${mimeType};base64,${coverData}`;
+                    }
+                }
+                
+                // 如果还是找不到，列出所有可能的图片文件
+                console.log('列出所有可能的图片文件:');
+                const allFiles = Object.keys(zip.files);
+                const imageFiles = allFiles.filter(file => 
+                    /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file) && 
+                    !file.includes('__MACOSX') && 
+                    !file.includes('.DS_Store')
+                );
+                console.log('找到的图片文件:', imageFiles);
+                
+                if (imageFiles.length > 0) {
+                    // 使用第一个图片文件
+                    const firstImage = imageFiles[0];
+                    console.log('使用第一个图片文件作为封面:', firstImage);
+                    const imageFile = zip.file(firstImage);
+                    const extension = firstImage.split('.').pop().toLowerCase();
+                    const mimeType = extension === 'png' ? 'image/png' : 
+                                   extension === 'gif' ? 'image/gif' : 'image/jpeg';
+                    
+                    const coverData = await imageFile.async('base64');
+                    return `data:${mimeType};base64,${coverData}`;
+                }
+                
+                return null;
+            }
+            
+            // 获取文件扩展名
+            const extension = coverPath.split('.').pop().toLowerCase();
+            const mimeType = extension === 'png' ? 'image/png' : 
+                           extension === 'gif' ? 'image/gif' : 'image/jpeg';
+            
+            const coverData = await coverFile.async('base64');
+            return `data:${mimeType};base64,${coverData}`;
+            
+        } catch (error) {
+            console.warn('提取封面失败:', error);
+            return null;
+        }
+    }
+
     // 计算文件哈希值
     async calculateFileHash(file) {
         return new Promise((resolve, reject) => {
@@ -396,7 +609,8 @@ class ReaderDataStore {
                                     size: bookFile.size,
                                     lastModified: bookFile.lastModified,
                                     lastRead: Date.now(),
-                                    fileData: e.target.result // 直接存储ArrayBuffer
+                                    fileData: e.target.result, // 直接存储ArrayBuffer
+                                    coverData: null // 封面数据，稍后提取
                                 };
                                 
                                 console.log('保存新书籍数据:', {
@@ -410,6 +624,29 @@ class ReaderDataStore {
                                 
                                 putRequest.onsuccess = () => {
                                     console.log('书籍保存成功:', bookFile.name);
+                                    
+                                    // 延迟异步提取封面，避免阻塞主流程
+                                    setTimeout(async () => {
+                                        try {
+                                            const coverData = await this.extractCover(bookFile);
+                                            if (coverData) {
+                                                // 更新书籍记录，添加封面数据
+                                                bookData.coverData = coverData;
+                                                const updateTransaction = this.db.transaction(['books'], 'readwrite');
+                                                const updateStore = updateTransaction.objectStore('books');
+                                                const updateRequest = updateStore.put(bookData);
+                                                updateRequest.onsuccess = () => {
+                                                    console.log('封面保存成功:', bookFile.name);
+                                                };
+                                                updateRequest.onerror = () => {
+                                                    console.warn('封面保存失败:', updateRequest.error);
+                                                };
+                                            }
+                                        } catch (error) {
+                                            console.warn('提取封面失败:', error);
+                                        }
+                                    }, 100); // 延迟100ms执行
+                                    
                                     resolve(fileHash); // 返回哈希值
                                 };
                                 
@@ -761,6 +998,87 @@ class ReaderDataStore {
         });
     }
 
+
+    // 获取所有书籍
+    async getAllBooks() {
+        if (!this.db) await this.init();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['books'], 'readonly');
+            const store = transaction.objectStore('books');
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                const books = request.result || [];
+                // 按最后阅读时间排序
+                books.sort((a, b) => (b.lastRead || 0) - (a.lastRead || 0));
+                resolve(books);
+            };
+
+            request.onerror = () => {
+                console.error('获取书籍列表失败:', request.error);
+                reject(request.error);
+            };
+        });
+    }
+
+    // 更新书籍封面
+    async updateBookCover(bookName) {
+        if (!this.db) await this.init();
+        
+        return new Promise(async (resolve, reject) => {
+            try {
+                console.log('开始提取封面:', bookName);
+                const book = await this.getBook(bookName);
+                if (!book) {
+                    console.warn('书籍不存在:', bookName);
+                    reject(new Error('书籍不存在'));
+                    return;
+                }
+                
+                // 如果有封面数据，跳过
+                if (book.coverData) {
+                    console.log('书籍已有封面:', bookName);
+                    resolve(book.coverData);
+                    return;
+                }
+                
+                // 从fileData创建File对象
+                const bookFile = new File([book.fileData], book.name, {
+                    type: 'application/epub+zip',
+                    lastModified: book.lastModified
+                });
+                
+                // 提取封面
+                console.log('开始提取封面数据...');
+                const coverData = await this.extractCover(bookFile);
+                if (coverData) {
+                    console.log('封面提取成功:', bookName);
+                    // 更新书籍记录
+                    book.coverData = coverData;
+                    const transaction = this.db.transaction(['books'], 'readwrite');
+                    const store = transaction.objectStore('books');
+                    const request = store.put(book);
+                    
+                    request.onsuccess = () => {
+                        console.log('封面保存成功:', bookName);
+                        resolve(coverData);
+                    };
+                    
+                    request.onerror = () => {
+                        console.error('封面保存失败:', request.error);
+                        reject(request.error);
+                    };
+                } else {
+                    console.warn('封面提取失败，未找到封面:', bookName);
+                    resolve(null);
+                }
+            } catch (error) {
+                console.error('更新封面失败:', error);
+                reject(error);
+            }
+        });
+    }
 
     // 获取存储信息
     async getStorageInfo() {
