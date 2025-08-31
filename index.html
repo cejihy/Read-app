@@ -364,56 +364,7 @@
             display: block;
         }
 
-        .bookmark-item {
-            padding: 12px;
-            border: 1px solid #e5e5e5;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
 
-        .bookmark-item:hover {
-            background: #f8f9fa;
-        }
-
-        .bookmark-item-title {
-            font-size: 14px;
-            font-weight: 500;
-            color: #333;
-            margin-bottom: 4px;
-        }
-
-        .bookmark-item-note {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 4px;
-        }
-
-        .bookmark-item-time {
-            font-size: 11px;
-            color: #999;
-        }
-
-        .bookmark-item-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .bookmark-action-btn {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            color: #6c757d;
-        }
-
-        .bookmark-action-btn:hover {
-            background: #e9ecef;
-        }
 
         /* 书签带子样式 */
         .floating-bookmark {
@@ -423,15 +374,17 @@
             width: 20px;
             height: 80px;
             background: #ff6b6b;
-            cursor: grab;
+            cursor: pointer;
             z-index: 1000;
             transition: all 0.2s ease;
             user-select: none;
             touch-action: none;
+            border-radius: 0 0 10px 10px;
         }
 
         .floating-bookmark:active {
-            cursor: grabbing;
+            cursor: pointer;
+            background: #ff5252;
         }
 
         /* 模拟状态栏延伸效果 */
@@ -443,6 +396,7 @@
             width: 100%;
             height: 25px;
             background: #ff6b6b;
+            border-radius: 10px 10px 0 0;
         }
 
         .floating-bookmark:hover,
@@ -453,6 +407,7 @@
         .floating-bookmark.dragging {
             transform: translateY(20px);
             background: #ff5252;
+            cursor: grabbing;
         }
 
         .floating-bookmark.dragging::before {
@@ -605,30 +560,7 @@
             font-weight: 400;
         }
 
-        .toc-page-level-1 {
-            font-size: 12px;
-            color: #666;
-        }
 
-        .toc-page-level-2 {
-            font-size: 11px;
-            color: #777;
-        }
-
-        .toc-page-level-3 {
-            font-size: 10px;
-            color: #888;
-        }
-
-        .toc-page-level-4 {
-            font-size: 9px;
-            color: #999;
-        }
-
-        .toc-page-level-5 {
-            font-size: 8px;
-            color: #aaa;
-        }
 
         /* 遮罩层 */
         .overlay {
@@ -1022,7 +954,6 @@
             <!-- 分页标签 -->
             <div class="tab-bar">
                 <button class="tab-btn active" data-tab="toc">目录</button>
-                <button class="tab-btn" data-tab="bookmark">书签</button>
                 <button class="tab-btn" data-tab="mark">标记</button>
             </div>
             
@@ -1033,19 +964,7 @@
                 </ul>
             </div>
             
-            <!-- 书签内容 -->
-            <div class="tab-content" id="bookmark-content">
-                <div class="bookmark-section">
-                    <div class="bookmark-section-title">添加新书签</div>
-                    <button class="control-btn" onclick="addBookmark()" style="width: 100%; background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; margin-bottom: 16px;">添加书签</button>
-                </div>
-                <div class="bookmark-section">
-                    <div class="bookmark-section-title">书签列表</div>
-                    <div id="bookmark-list">
-                        <!-- 书签项将在这里动态生成 -->
-                    </div>
-                </div>
-            </div>
+
             
             <!-- 标记内容 -->
             <div class="tab-content" id="mark-content">
@@ -1418,8 +1337,6 @@
                 showPanel('unified-panel');
                 // 更新目录高亮
                 setTimeout(updateTOCHighlight, 100);
-                // 更新书签列表
-                updateBookmarkList();
                 // 更新标记列表
                 updateMarkList();
                             } else {
@@ -1480,14 +1397,12 @@
                             const li = document.createElement('li');
                             const levelClass = level <= 5 ? `toc-item-level-${level}` : 'toc-item-level-5';
                             const titleClass = level <= 5 ? `toc-title-level-${level}` : 'toc-title-level-5';
-                            const pageClass = level <= 5 ? `toc-page-level-${level}` : 'toc-page-level-5';
                             
                             li.className = levelClass;
                             li.setAttribute('data-href', item.href); // 存储href用于匹配当前章节
                             
                             li.innerHTML = `
-                                <div class="${titleClass}">${item.label || `第 ${index + 1} 章`}</div>
-                                <div class="${pageClass}">第 ${index + 1} 章</div>
+                                <div class="${titleClass}">${item.label || `章节 ${index + 1}`}</div>
                             `;
                             
                                                          li.addEventListener('click', async () => {
@@ -1518,7 +1433,6 @@
                     li.className = 'toc-item';
                     li.innerHTML = `
                         <div class="toc-item-title">暂无目录</div>
-                        <div class="toc-item-page">该电子书未包含目录信息</div>
                     `;
                     tocList.appendChild(li);
                 }
@@ -1528,7 +1442,6 @@
                 tocList.innerHTML = `
                     <li class="toc-item">
                         <div class="toc-item-title">加载失败</div>
-                        <div class="toc-item-page">无法加载目录信息</div>
                     </li>
                 `;
             }
@@ -2243,69 +2156,28 @@
                     title,
                     ''
                 );
-
-                // 立即更新书签列表
-                updateBookmarkList();
             } catch (error) {
                 console.error('添加书签失败:', error);
             }
         }
 
-        async function updateBookmarkList() {
-            if (!currentBookFileName) {
-                document.getElementById('bookmark-list').innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">请先加载电子书</div>';
-                return;
-            }
 
+
+        async function goToBookmark() {
             try {
-                const bookmarks = await dataStore.getBookmarks(currentBookFileName);
-                const bookmarkList = document.getElementById('bookmark-list');
-
-                if (bookmarks.length === 0) {
-                    bookmarkList.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">暂无书签</div>';
+                if (!currentBookFileName) {
                     return;
                 }
-
-                bookmarkList.innerHTML = '';
-                bookmarks.forEach(bookmark => {
-                    const bookmarkItem = document.createElement('div');
-                    bookmarkItem.className = 'bookmark-item';
-                    bookmarkItem.style.cursor = 'pointer';
-                    
-                    bookmarkItem.innerHTML = `
-                        <div class="bookmark-item-title" style="color: #007bff; font-weight: bold; font-size: 16px;">
-                            ${bookmark.title}
-                        </div>
-                        <div class="bookmark-item-time">${new Date(bookmark.timestamp).toLocaleString()}</div>
-                        <div class="bookmark-item-actions">
-                            <button class="bookmark-action-btn" onclick="deleteBookmark(${bookmark.id}); event.stopPropagation();">删除</button>
-                        </div>
-                    `;
-                    
-                    // 点击整个书签项跳转
-                    bookmarkItem.addEventListener('click', () => {
-                        goToBookmark(bookmark.id);
-                    });
-                    
-                    bookmarkList.appendChild(bookmarkItem);
-                });
-            } catch (error) {
-                console.error('更新书签列表失败:', error);
-                document.getElementById('bookmark-list').innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">加载书签失败</div>';
-            }
-        }
-
-        async function goToBookmark(bookmarkId) {
-            try {
+                
                 const bookmarks = await dataStore.getBookmarks(currentBookFileName);
-                const bookmark = bookmarks.find(b => b.id === bookmarkId);
+                // 每本书只有一个书签，直接使用第一个
+                const bookmark = bookmarks[0];
                 
                 if (!bookmark) {
                     return;
                 }
 
                 await rendition.display(bookmark.cfi);
-                hideUnifiedPanel();
             } catch (error) {
                 console.error('跳转书签失败:', error);
             }
@@ -2313,20 +2185,18 @@
 
 
 
-        async function deleteBookmark(bookmarkId) {
-            if (confirm('确定要删除这个书签吗？')) {
-                try {
-                    await dataStore.deleteBookmark(bookmarkId);
-                    updateBookmarkList();
-                } catch (error) {
-                    console.error('删除书签失败:', error);
-                }
-            }
-        }
 
-        // 书签拖拽功能
+
+        // 书签功能
         function initBookmarkDrag() {
             const bookmark = document.getElementById('floating-bookmark');
+            
+            // 单击书签带子跳转到书签位置
+            bookmark.addEventListener('click', async () => {
+                await goToBookmark();
+            });
+            
+            // 长按或拖拽添加书签
             let startY = 0;
             let currentY = 0;
             let isDragging = false;

@@ -543,35 +543,59 @@ class ReaderDataStore {
         });
     }
 
-    // 添加书签
+    // 添加书签（覆盖模式，每本书只保留一个）
     async addBookmark(bookName, cfi, title = '', note = '') {
         if (!this.db) await this.init();
         
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction(['bookmarks'], 'readwrite');
             const store = transaction.objectStore('bookmarks');
-            const bookmark = {
-                bookName,
-                cfi,
-                title,
-                note,
-                timestamp: Date.now()
-            };
-            const request = store.add(bookmark);
+            
+            // 先删除该书籍的现有书签
+            const index = store.index('bookName');
+            const deleteRequest = index.getAllKeys(bookName);
+            
+            deleteRequest.onsuccess = () => {
+                // 删除所有现有书签
+                const deletePromises = deleteRequest.result.map(key => {
+                    return new Promise((resolveDelete) => {
+                        const deleteReq = store.delete(key);
+                        deleteReq.onsuccess = () => resolveDelete();
+                        deleteReq.onerror = () => resolveDelete();
+                    });
+                });
+                
+                Promise.all(deletePromises).then(() => {
+                    // 添加新书签
+                    const bookmark = {
+                        bookName,
+                        cfi,
+                        title,
+                        note,
+                        timestamp: Date.now()
+                    };
+                    const addRequest = store.add(bookmark);
 
-            request.onsuccess = () => {
-                console.log('书签添加成功:', title);
-                resolve(request.result);
+                    addRequest.onsuccess = () => {
+                        console.log('书签添加成功:', title);
+                        resolve(addRequest.result);
+                    };
+
+                    addRequest.onerror = () => {
+                        console.error('添加书签失败:', addRequest.error);
+                        reject(addRequest.error);
+                    };
+                });
             };
 
-            request.onerror = () => {
-                console.error('添加书签失败:', request.error);
-                reject(request.error);
+            deleteRequest.onerror = () => {
+                console.error('删除旧书签失败:', deleteRequest.error);
+                reject(deleteRequest.error);
             };
         });
     }
 
-    // 获取书籍的所有书签
+    // 获取书籍的书签（每本书只有一个）
     async getBookmarks(bookName) {
         if (!this.db) await this.init();
         
@@ -582,8 +606,8 @@ class ReaderDataStore {
             const request = index.getAll(bookName);
 
             request.onsuccess = () => {
-                // 按时间倒序排列
-                const bookmarks = request.result.sort((a, b) => b.timestamp - a.timestamp);
+                // 每本书只有一个书签，直接返回
+                const bookmarks = request.result;
                 resolve(bookmarks);
             };
 
