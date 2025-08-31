@@ -312,6 +312,44 @@ class ReaderDataStore {
 
 
 
+    // 计算文件哈希值
+    async calculateFileHash(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    // 使用简单的哈希算法
+                    const arrayBuffer = e.target.result;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    let hash = 0;
+                    
+                    // 简单的哈希计算（为了性能，只取部分数据）
+                    const step = Math.max(1, Math.floor(uint8Array.length / 1000));
+                    for (let i = 0; i < uint8Array.length; i += step) {
+                        hash = ((hash << 5) - hash) + uint8Array[i];
+                        hash = hash & hash; // 转换为32位整数
+                    }
+                    
+                    // 结合文件大小和修改时间
+                    const combinedHash = `${hash}_${file.size}_${file.lastModified}`;
+                    resolve(combinedHash);
+                } catch (error) {
+                    console.error('计算文件哈希失败:', error);
+                    // 降级到文件名
+                    resolve(file.name);
+                }
+            };
+            
+            reader.onerror = () => {
+                console.error('读取文件失败:', reader.error);
+                // 降级到文件名
+                resolve(file.name);
+            };
+            
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
     // 保存书籍
     async saveBook(bookFile) {
         if (!this.db) await this.init();
