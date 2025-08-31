@@ -1472,14 +1472,47 @@
                     await loadMarkDataFromDB(marks, groups);
                 }
                 
+                // 验证并修复groupId不一致问题
+                await validateAndFixGroupIds();
+                
             } catch (error) {
                 console.error('初始化标记数据失败:', error);
+            }
+        }
+
+        // 验证并修复groupId不一致问题
+        async function validateAndFixGroupIds() {
+            try {
+                const marks = await dataStore.getAllMarks();
+                const groups = await dataStore.getAllMarkGroups();
+                
+                // 检查是否有groupId不一致的问题
+                const groupIdsInMarks = new Set(marks.map(m => m.groupId).filter(id => id !== null));
+                const groupIdsInGroups = new Set(groups.map(g => g.id));
+                
+                console.log('验证groupId一致性:', {
+                    marks中的groupId: [...groupIdsInMarks],
+                    groups中的id: [...groupIdsInGroups]
+                });
+                
+                // 如果发现不一致，重新保存数据
+                if (groupIdsInMarks.size > 0 && !groupIdsInMarks.has([...groupIdsInGroups][0])) {
+                    console.log('检测到groupId不一致，重新保存数据...');
+                    await saveMarkData();
+                    console.log('数据重新保存完成');
+                }
+                
+            } catch (error) {
+                console.error('验证groupId失败:', error);
             }
         }
 
         // 从数据库加载标记数据
         async function loadMarkDataFromDB(marks, groups) {
             console.log('加载标记数据:', { marks: marks.length, groups: groups.length });
+            
+            // 创建groupId映射表
+            const groupIdMap = new Map();
             
             // 处理分组标记
             groups.forEach(group => {
@@ -1489,6 +1522,9 @@
                     markNotes[word] = group.note || '';
                     markImages[word] = group.imageData || '';
                     markGroups[word] = group.id;
+                    
+                    // 记录groupId映射
+                    groupIdMap.set(word, group.id);
                 });
             });
             
@@ -1504,8 +1540,13 @@
             
             console.log('加载完成:', { 
                 markWords: markWords.length, 
-                markGroups: Object.keys(markGroups).length 
+                markGroups: Object.keys(markGroups).length,
+                groupIdMap: Object.fromEntries(groupIdMap)
             });
+            
+            // 验证数据一致性
+            const uniqueGroupIds = [...new Set(Object.values(markGroups).filter(id => id !== null))];
+            console.log('唯一groupId列表:', uniqueGroupIds);
         }
 
         // 迁移旧数据格式
@@ -1675,15 +1716,20 @@
             // 使用 DocumentFragment 批量添加元素
             const fragment = document.createDocumentFragment();
             
-            // 按组显示标记
+            // 按组显示标记 - 使用实际的groupId
             const groups = {};
+            const groupIdMapping = {}; // 存储groupId映射
+            
             markWords.forEach((word, index) => {
                 const groupId = markGroups[word] || 'ungrouped';
                 if (!groups[groupId]) {
                     groups[groupId] = [];
+                    groupIdMapping[groupId] = groupId; // 保存实际的groupId
                 }
                 groups[groupId].push({ word, index });
             });
+            
+            console.log('标记列表分组:', groups);
             
             Object.keys(groups).forEach(groupId => {
                 const groupItems = groups[groupId];
@@ -1713,11 +1759,18 @@
                     this.style.backgroundColor = '#f0f8ff';
                 };
                 
-                // 点击打开编辑界面
+                // 点击打开编辑界面 - 直接使用词汇查找groupId
                 noteBlock.onclick = function() {
-                    console.log('点击标记组:', groupId);
-                    console.log('当前markGroups:', markGroups);
-                    editMarkGroup(groupId);
+                    const firstWord = firstItem.word;
+                    const actualGroupId = markGroups[firstWord];
+                    console.log('点击标记组:', groupId, '词汇:', firstWord, '实际groupId:', actualGroupId);
+                    
+                    if (actualGroupId) {
+                        editMarkGroup(actualGroupId);
+                    } else {
+                        console.error('无法找到词汇对应的groupId:', firstWord);
+                        alert('标记数据异常，请刷新页面重试');
+                    }
                 };
                 
                 let content = '';
@@ -1767,11 +1820,14 @@
                 // 编辑现有组
                 groupWords = Object.keys(markGroups).filter(w => markGroups[w] === groupId);
                 console.log('查找组词汇:', groupId, groupWords);
+                
                 if (groupWords.length === 0) {
                     console.error('未找到组词汇:', groupId);
+                    console.error('可用的groupId:', [...new Set(Object.values(markGroups))]);
                     alert('未找到对应的标记组，请刷新页面重试');
                     return;
                 }
+                
                 const firstWord = groupWords[0];
                 currentNote = markNotes[firstWord] || '';
                 currentImage = markImages[firstWord] || '';
