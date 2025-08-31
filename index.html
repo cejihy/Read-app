@@ -2221,6 +2221,53 @@
             
             // 批量处理文本节点
             textNodes.forEach(textNode => {
+                // 检查是否在特殊元素中（标题、导航等）
+                const parentElement = textNode.parentElement;
+                if (!parentElement) return;
+                
+                // 跳过标题、导航等特殊元素
+                const tagName = parentElement.tagName.toLowerCase();
+                const className = parentElement.className.toLowerCase();
+                const id = parentElement.id.toLowerCase();
+                
+                // 检查是否在标题或导航元素中
+                const isHeading = tagName.match(/^h[1-6]$/);
+                const isNavigation = tagName === 'nav' || className.includes('nav') || id.includes('nav');
+                const isToc = className.includes('toc') || id.includes('toc');
+                const isTitle = className.includes('title') || id.includes('title');
+                const isHeader = className.includes('header') || id.includes('header');
+                
+                if (isHeading || isNavigation || isToc || isTitle || isHeader) {
+                    console.log('跳过特殊元素:', tagName, className, id);
+                    return;
+                }
+                
+                // 检查是否在epub.js的特殊元素中
+                const isEpubSpecial = className.includes('epub') || 
+                                    className.includes('chapter') || 
+                                    className.includes('section') ||
+                                    parentElement.closest('.epub-container') ||
+                                    parentElement.closest('.chapter') ||
+                                    parentElement.closest('.section');
+                
+                // 检查是否在标题相关的元素中
+                const isInTitle = parentElement.closest('h1, h2, h3, h4, h5, h6, .title, .chapter-title, .section-title');
+                
+                if (isEpubSpecial || isInTitle) {
+                    console.log('跳过特殊元素:', tagName, className, isInTitle ? '(标题元素)' : '');
+                    return;
+                }
+                
+                // 确保只在正文段落中应用标记
+                const isInParagraph = parentElement.tagName === 'P' || 
+                                    parentElement.tagName === 'DIV' ||
+                                    parentElement.closest('p, div');
+                
+                if (!isInParagraph) {
+                    console.log('跳过非段落元素:', tagName, className);
+                    return;
+                }
+                
                 const text = textNode.textContent;
                 let hasChanges = false;
                 const fragment = doc.createDocumentFragment();
