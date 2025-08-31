@@ -75,7 +75,11 @@
 
 
         .file-input {
-            display: none;
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 1px;
+            height: 1px;
         }
 
                  .upload-btn {
@@ -1361,7 +1365,7 @@
     <!-- 顶部栏 -->
     <div class="header">
                  <div class="header-left">
-             <input type="file" id="file-input" class="file-input" accept=".epub" />
+             <input type="file" id="file-input" class="file-input" accept=".epub" multiple="false" />
              <button class="upload-btn" onclick="showBookshelf()">
                  📚 我的书架
              </button>
@@ -1628,8 +1632,9 @@
 
         // 文件选择监听
         document.getElementById('file-input').addEventListener('change', function(e) {
-            if (e.target.files[0]) {
+            if (e.target.files && e.target.files[0]) {
                 const file = e.target.files[0];
+                console.log('选择文件:', file.name, '大小:', file.size);
                 loadBook(file);
                 e.target.value = ''; // 清空选择
             }
@@ -1678,13 +1683,94 @@
 
 
 
+        // 检测是否为移动设备
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                   (window.innerWidth <= 768);
+        }
+
+        // 触发文件选择
+        function triggerFileSelect() {
+            try {
+                console.log('触发文件选择...');
+                const isMobile = isMobileDevice();
+                console.log('是否为移动设备:', isMobile);
+                
+                const fileInput = document.getElementById('file-input');
+                if (fileInput) {
+                    console.log('找到文件输入元素');
+                    // 重置文件输入，确保能重复选择同一文件
+                    fileInput.value = '';
+                    
+                    // 移动设备特殊处理
+                    if (isMobile) {
+                        // 确保文件输入可见且可交互
+                        fileInput.style.position = 'fixed';
+                        fileInput.style.top = '0';
+                        fileInput.style.left = '0';
+                        fileInput.style.width = '100%';
+                        fileInput.style.height = '100%';
+                        fileInput.style.opacity = '0';
+                        fileInput.style.zIndex = '9999';
+                        fileInput.style.pointerEvents = 'auto';
+                    }
+                    
+                    // 触发文件选择
+                    fileInput.click();
+                    console.log('文件选择已触发');
+                    
+                    // 移动设备处理完成后恢复样式
+                    if (isMobile) {
+                        setTimeout(() => {
+                            fileInput.style.position = 'absolute';
+                            fileInput.style.top = 'auto';
+                            fileInput.style.left = 'auto';
+                            fileInput.style.width = '1px';
+                            fileInput.style.height = '1px';
+                            fileInput.style.opacity = '0';
+                            fileInput.style.zIndex = 'auto';
+                            fileInput.style.pointerEvents = 'none';
+                        }, 1000);
+                    }
+                } else {
+                    console.error('文件输入元素不存在');
+                }
+            } catch (error) {
+                console.error('触发文件选择失败:', error);
+                // 备用方案：尝试直接创建文件输入
+                console.log('使用备用文件选择方案...');
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.epub';
+                input.multiple = false;
+                input.style.position = 'fixed';
+                input.style.top = '0';
+                input.style.left = '0';
+                input.style.width = '100%';
+                input.style.height = '100%';
+                input.style.opacity = '0';
+                input.style.zIndex = '9999';
+                document.body.appendChild(input);
+                
+                input.addEventListener('change', function(e) {
+                    if (e.target.files && e.target.files[0]) {
+                        console.log('备用方案选择文件:', e.target.files[0].name);
+                        loadBook(e.target.files[0]);
+                    }
+                    document.body.removeChild(input);
+                });
+                
+                input.click();
+            }
+        }
+
         // 设置按钮事件
         addButtonEvent('settings-btn', showSettings);
         addButtonEvent('settings-close', hideSettings);
 
         // 书架按钮事件
                     addButtonEvent('bookshelf-close', hideBookshelf);
-            addButtonEvent('add-book-btn', () => document.getElementById('file-input').click());
+            addButtonEvent('add-book-btn', triggerFileSelect);
             addButtonEvent('select-mode-btn', toggleSelectMode);
             addButtonEvent('select-all-btn', selectAllBooks);
             addButtonEvent('cancel-select-btn', cancelSelectMode);
