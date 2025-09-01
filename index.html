@@ -47,12 +47,6 @@
             left: 0;
         }
 
-        /* 书架面板显示时允许滚动 */
-        body.bookshelf-open {
-            overflow: auto !important;
-            position: static !important;
-        }
-
         /* 顶部栏 */
         .header {
             background: white;
@@ -334,14 +328,12 @@
             background: white;
             transition: transform 0.3s ease;
             z-index: 1001;
-            overflow-y: auto !important;
+            overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
             -ms-overflow-style: none;
             transform: translateY(100%);
             padding-top: env(safe-area-inset-top);
-            touch-action: pan-y;
-            will-change: transform;
         }
 
         .bookshelf-panel::-webkit-scrollbar {
@@ -511,13 +503,13 @@
         .books-list {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
         }
 
         /* 移动设备上减少列表间距 */
         @media (max-width: 768px) {
             .books-list {
-                gap: 12px;
+                gap: 8px;
             }
             
             .book-item {
@@ -527,7 +519,7 @@
 
         @media (max-width: 480px) {
             .books-list {
-                gap: 10px;
+                gap: 6px;
             }
             
             .book-item {
@@ -538,38 +530,42 @@
         .books-list.grid-mode {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 32px;
-            padding: 32px;
+            gap: 24px;
+            padding: 24px;
         }
 
         /* 响应式网格布局 */
         @media (max-width: 768px) {
             .books-list.grid-mode {
-                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important;
-                gap: 24px !important;
-                padding: 24px !important;
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 16px;
+                padding: 16px;
             }
             
             .book-item.grid-item .book-cover,
             .book-item.grid-item .book-icon {
-                background: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
+                width: 80px;
+                height: 120px;
+                background: transparent;
+                border: none;
+                box-shadow: none;
             }
         }
 
         @media (max-width: 480px) {
             .books-list.grid-mode {
-                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)) !important;
-                gap: 20px !important;
-                padding: 20px !important;
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+                gap: 12px;
+                padding: 12px;
             }
             
             .book-item.grid-item .book-cover,
             .book-item.grid-item .book-icon {
-                background: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
+                width: 60px;
+                height: 90px;
+                background: transparent;
+                border: none;
+                box-shadow: none;
             }
         }
 
@@ -582,40 +578,17 @@
             cursor: pointer;
             justify-content: center;
             align-items: center;
-            background: transparent !important;
-            border: none !important;
+            background: transparent;
+            border: none;
             border-radius: 0;
-            box-shadow: none !important;
-            margin: 0;
         }
 
         .book-item.grid-item:hover {
             transform: translateY(-4px);
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
         }
 
         .book-item.grid-item:active {
             transform: translateY(-2px);
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
-
-        /* 确保网格模式下不继承普通book-item的样式 */
-        .books-list.grid-mode .book-item {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-
-        .books-list.grid-mode .book-item:hover {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
         }
 
         /* 移动设备上减少动画效果 */
@@ -1463,20 +1436,6 @@
             height: 100%;
         }
 
-        /* 书架面板显示时允许滚动 */
-        html.bookshelf-open, body.bookshelf-open {
-            overflow: auto !important;
-            position: static !important;
-            height: auto !important;
-        }
-
-        /* 确保书架面板可以滚动 */
-        .bookshelf-panel.show {
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-            touch-action: pan-y !important;
-        }
-
         /* 允许文本选择 */
         #viewer {
             -webkit-user-select: text;
@@ -1802,8 +1761,6 @@
              hideUnifiedPanel();
              hideSettings();
             hideBookshelf();
-            document.documentElement.classList.remove('bookshelf-open');
-            document.body.classList.remove('bookshelf-open');
          }
 
         function showPanel(panelId) {
@@ -2518,8 +2475,6 @@
         // 显示书架面板
         function showBookshelf() {
             showPanel('bookshelf-panel');
-            document.documentElement.classList.add('bookshelf-open');
-            document.body.classList.add('bookshelf-open');
             
             // 恢复保存的视图模式
             const savedMode = localStorage.getItem('bookshelfViewMode') || 'list';
@@ -2535,8 +2490,6 @@
         function hideBookshelf() {
             document.getElementById('bookshelf-panel').classList.remove('show');
             document.getElementById('overlay').classList.remove('show');
-            document.documentElement.classList.remove('bookshelf-open');
-            document.body.classList.remove('bookshelf-open');
         }
 
 
