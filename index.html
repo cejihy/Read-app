@@ -302,10 +302,7 @@
             background: white;
             transition: transform 0.3s ease;
             z-index: 1001;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
+            overflow: hidden;
             transform: translateY(100%);
             padding-top: env(safe-area-inset-top);
         }
@@ -328,10 +325,7 @@
             background: white;
             transition: transform 0.3s ease;
             z-index: 1001;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
+            overflow: hidden;
             transform: translateY(100%);
             padding-top: env(safe-area-inset-top);
         }
@@ -346,6 +340,15 @@
 
         .bookshelf-content {
             padding: 20px;
+            height: calc(100vh - 80px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .bookshelf-content::-webkit-scrollbar {
+            display: none;
         }
 
         .bookshelf-stats {
@@ -379,6 +382,13 @@
             display: flex;
             gap: 12px;
             margin-bottom: 20px;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 8;
+            padding: 20px 0 20px 0;
+            margin: 0 0 20px 0;
+            border-bottom: 1px solid #f0f0f0;
         }
 
         .view-mode-toggle {
@@ -426,6 +436,11 @@
             padding: 16px;
             margin-bottom: 20px;
             border: 1px solid #e9ecef;
+            position: sticky;
+            top: 80px;
+            background: #f8f9fa;
+            z-index: 7;
+            margin: 0 0 20px 0;
         }
 
         .batch-info {
@@ -504,6 +519,7 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            padding: 0 0 20px 0;
         }
 
         /* 移动设备上减少列表间距 */
@@ -531,7 +547,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 24px;
-            padding: 24px;
+            padding: 24px 24px 40px 24px;
         }
 
         /* 响应式网格布局 */
@@ -539,7 +555,7 @@
             .books-list.grid-mode {
                 grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
                 gap: 16px;
-                padding: 16px;
+                padding: 16px 16px 32px 16px;
             }
             
             .book-item.grid-item .book-cover,
@@ -556,7 +572,7 @@
             .books-list.grid-mode {
                 grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
                 gap: 12px;
-                padding: 12px;
+                padding: 12px 12px 24px 12px;
             }
             
             .book-item.grid-item .book-cover,
@@ -887,6 +903,7 @@
             position: sticky;
             top: 0;
             z-index: 10;
+            background: #f8f9fa;
         }
 
         .unified-title {
@@ -926,6 +943,7 @@
             position: sticky;
             top: 80px;
             z-index: 9;
+            background: #f8f9fa;
         }
 
         .tab-btn {
@@ -957,6 +975,12 @@
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             max-height: calc(100vh - 180px);
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .tab-content::-webkit-scrollbar {
+            display: none;
         }
 
         .tab-content.active {
@@ -1421,7 +1445,8 @@
         .tab-content,
         .toc-list,
         .bookmark-list,
-        .mark-list {
+        .mark-list,
+        .bookshelf-content {
             touch-action: pan-y;
             -webkit-user-select: text;
             -moz-user-select: text;
@@ -3950,6 +3975,11 @@
              const settingsPanel = document.getElementById('settings-panel');
              if (settingsPanel && settingsPanel.contains(event.target)) {
                  return; // 允许设置面板内的滚动
+             }
+             // 检查是否在书架面板内
+             const bookshelfPanel = document.getElementById('bookshelf-panel');
+             if (bookshelfPanel && bookshelfPanel.contains(event.target)) {
+                 return; // 允许书架面板内的滚动
              }
 
              event.preventDefault();
