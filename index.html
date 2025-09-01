@@ -380,15 +380,16 @@
 
         .bookshelf-controls {
             display: flex;
-            gap: 12px;
+            align-items: center;
+            justify-content: center;
             margin-bottom: 16px;
             position: sticky;
             top: 0;
             background: white;
             z-index: 8;
-            padding: 16px 0 16px 0;
-            margin: 0 0 16px 0;
+            padding: 16px 0;
             border-bottom: 1px solid #f0f0f0;
+            gap: 12px;
         }
 
         .view-mode-toggle {
@@ -465,7 +466,6 @@
         }
 
         .bookshelf-btn {
-            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1666,14 +1666,10 @@
 
                 
                 <div class="bookshelf-controls">
-                    <div class="view-mode-toggle">
-                        <button class="view-mode-btn active" id="list-mode-btn" data-mode="list">列表</button>
-                        <button class="view-mode-btn" id="grid-mode-btn" data-mode="grid">网格</button>
-                    </div>
-                    <div style="display: flex; gap: 12px; flex: 1; margin-left: 20px;">
-                        <button class="bookshelf-btn" id="add-book-btn">添加书籍</button>
-                        <button class="bookshelf-btn" id="select-mode-btn">编辑</button>
-                    </div>
+                    <button class="view-mode-btn active" id="list-mode-btn" data-mode="list">列表</button>
+                    <button class="view-mode-btn" id="grid-mode-btn" data-mode="grid">网格</button>
+                    <button class="bookshelf-btn" id="add-book-btn">添加书籍</button>
+                    <button class="bookshelf-btn" id="select-mode-btn">编辑</button>
                 </div>
                 
                 <div class="batch-actions" id="batch-actions" style="display: none;">
