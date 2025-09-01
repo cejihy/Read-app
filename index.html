@@ -47,6 +47,11 @@
             left: 0;
         }
 
+        /* 书架面板显示时允许滚动 */
+        body.bookshelf-open {
+            overflow: auto !important;
+        }
+
         /* 顶部栏 */
         .header {
             background: white;
@@ -328,7 +333,7 @@
             background: white;
             transition: transform 0.3s ease;
             z-index: 1001;
-            overflow-y: auto;
+            overflow-y: auto !important;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
             -ms-overflow-style: none;
@@ -537,35 +542,35 @@
         /* 响应式网格布局 */
         @media (max-width: 768px) {
             .books-list.grid-mode {
-                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-                gap: 32px;
-                padding: 32px;
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important;
+                gap: 32px !important;
+                padding: 32px !important;
             }
             
             .book-item.grid-item .book-cover,
             .book-item.grid-item .book-icon {
-                width: 80px;
-                height: 120px;
-                background: transparent;
-                border: none;
-                box-shadow: none;
+                width: 80px !important;
+                height: 120px !important;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
             }
         }
 
         @media (max-width: 480px) {
             .books-list.grid-mode {
-                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-                gap: 28px;
-                padding: 28px;
+                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)) !important;
+                gap: 28px !important;
+                padding: 28px !important;
             }
             
             .book-item.grid-item .book-cover,
             .book-item.grid-item .book-icon {
-                width: 60px;
-                height: 90px;
-                background: transparent;
-                border: none;
-                box-shadow: none;
+                width: 60px !important;
+                height: 90px !important;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
             }
         }
 
@@ -1784,6 +1789,7 @@
              hideUnifiedPanel();
              hideSettings();
             hideBookshelf();
+            document.body.classList.remove('bookshelf-open');
          }
 
         function showPanel(panelId) {
@@ -2498,6 +2504,7 @@
         // 显示书架面板
         function showBookshelf() {
             showPanel('bookshelf-panel');
+            document.body.classList.add('bookshelf-open');
             
             // 恢复保存的视图模式
             const savedMode = localStorage.getItem('bookshelfViewMode') || 'list';
@@ -2513,6 +2520,7 @@
         function hideBookshelf() {
             document.getElementById('bookshelf-panel').classList.remove('show');
             document.getElementById('overlay').classList.remove('show');
+            document.body.classList.remove('bookshelf-open');
         }
 
 
