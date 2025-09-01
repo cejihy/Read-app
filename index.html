@@ -535,22 +535,20 @@
         .books-list.grid-mode {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 40px;
-            padding: 40px;
+            gap: 48px;
+            padding: 48px;
         }
 
         /* 响应式网格布局 */
         @media (max-width: 768px) {
             .books-list.grid-mode {
                 grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important;
-                gap: 32px !important;
-                padding: 32px !important;
+                gap: 40px !important;
+                padding: 40px !important;
             }
             
             .book-item.grid-item .book-cover,
             .book-item.grid-item .book-icon {
-                width: 80px !important;
-                height: 120px !important;
                 background: transparent !important;
                 border: none !important;
                 box-shadow: none !important;
@@ -560,14 +558,12 @@
         @media (max-width: 480px) {
             .books-list.grid-mode {
                 grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)) !important;
-                gap: 28px !important;
-                padding: 28px !important;
+                gap: 36px !important;
+                padding: 36px !important;
             }
             
             .book-item.grid-item .book-cover,
             .book-item.grid-item .book-icon {
-                width: 60px !important;
-                height: 90px !important;
                 background: transparent !important;
                 border: none !important;
                 box-shadow: none !important;
