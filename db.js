@@ -282,6 +282,135 @@ class ReaderDataStore {
         });
     }
 
+    // 更新标记组及其相关标记（使用事务确保数据一致性）
+    async updateMarkGroupWithMarks(groupId, data) {
+        if (!this.db) await this.init();
+        
+        return new Promise((resolve, reject) => {
+            try {
+                console.log('开始更新标记组及其标记:', groupId, data);
+                
+                // 使用事务同时操作两个存储
+                const transaction = this.db.transaction(['markGroups', 'marks'], 'readwrite');
+                const groupsStore = transaction.objectStore('markGroups');
+                const marksStore = transaction.objectStore('marks');
+                
+                // 先更新标记组
+                const getGroupRequest = groupsStore.get(groupId);
+                
+                getGroupRequest.onsuccess = () => {
+                    const group = getGroupRequest.result;
+                    if (!group) {
+                        reject(new Error('标记组不存在'));
+                        return;
+                    }
+                    
+                    const updatedGroup = { ...group, ...data };
+                    const updateGroupRequest = groupsStore.put(updatedGroup);
+                    
+                    updateGroupRequest.onsuccess = () => {
+                        console.log('标记组更新成功:', groupId);
+                        
+                        // 删除旧的标记记录
+                        const marksIndex = marksStore.index('groupId');
+                        const marksRequest = marksIndex.getAllKeys(groupId);
+                        
+                        marksRequest.onsuccess = () => {
+                            const markIds = marksRequest.result;
+                            console.log('找到旧标记数量:', markIds.length);
+                            
+                            if (markIds.length === 0) {
+                                // 如果没有旧标记，直接添加新标记
+                                addNewMarks();
+                            } else {
+                                // 删除所有旧标记
+                                let deletedMarks = 0;
+                                const totalMarks = markIds.length;
+                                
+                                markIds.forEach(markId => {
+                                    const deleteMarkRequest = marksStore.delete(markId);
+                                    deleteMarkRequest.onsuccess = () => {
+                                        deletedMarks++;
+                                        if (deletedMarks === totalMarks) {
+                                            // 所有旧标记删除完成后，添加新标记
+                                            addNewMarks();
+                                        }
+                                    };
+                                    deleteMarkRequest.onerror = () => {
+                                        console.error('删除旧标记失败:', deleteMarkRequest.error);
+                                        // 即使某个标记删除失败，也继续删除其他标记
+                                    };
+                                });
+                            }
+                        };
+                        
+                        marksRequest.onerror = () => {
+                            console.error('查找旧标记失败:', marksRequest.error);
+                            reject(marksRequest.error);
+                        };
+                    };
+                    
+                    updateGroupRequest.onerror = () => {
+                        console.error('更新标记组失败:', updateGroupRequest.error);
+                        reject(updateGroupRequest.error);
+                    };
+                };
+                
+                getGroupRequest.onerror = () => {
+                    console.error('获取标记组失败:', getGroupRequest.error);
+                    reject(getGroupRequest.error);
+                };
+                
+                // 添加新标记的函数
+                function addNewMarks() {
+                    if (!data.words || data.words.length === 0) {
+                        console.log('没有新标记需要添加');
+                        resolve();
+                        return;
+                    }
+                    
+                    let addedMarks = 0;
+                    const totalNewMarks = data.words.length;
+                    
+                    data.words.forEach(word => {
+                        const addMarkRequest = marksStore.add({
+                            word: word.trim(),
+                            groupId: groupId,
+                            timestamp: Date.now()
+                        });
+                        
+                        addMarkRequest.onsuccess = () => {
+                            addedMarks++;
+                            if (addedMarks === totalNewMarks) {
+                                console.log('所有新标记添加完成:', totalNewMarks, '个');
+                                resolve();
+                            }
+                        };
+                        
+                        addMarkRequest.onerror = () => {
+                            console.error('添加新标记失败:', addMarkRequest.error);
+                            // 即使某个标记添加失败，也继续添加其他标记
+                        };
+                    });
+                }
+                
+                // 事务完成事件
+                transaction.oncomplete = () => {
+                    console.log('更新事务完成');
+                };
+                
+                transaction.onerror = () => {
+                    console.error('更新事务失败:', transaction.error);
+                    reject(transaction.error);
+                };
+                
+            } catch (error) {
+                console.error('updateMarkGroupWithMarks函数内部错误:', error);
+                reject(error);
+            }
+        });
+    }
+
     // 删除标记组
     async deleteMarkGroup(id) {
         if (!this.db) await this.init();
@@ -299,6 +428,90 @@ class ReaderDataStore {
                 console.error('删除标记组失败:', request.error);
                 reject(request.error);
             };
+        });
+    }
+
+    // 删除标记组及其相关标记（使用事务确保数据一致性）
+    async deleteMarkGroupWithMarks(groupId) {
+        if (!this.db) await this.init();
+        
+        return new Promise((resolve, reject) => {
+            try {
+                console.log('开始删除标记组及其标记:', groupId);
+                
+                // 使用事务同时操作两个存储
+                const transaction = this.db.transaction(['markGroups', 'marks'], 'readwrite');
+                const groupsStore = transaction.objectStore('markGroups');
+                const marksStore = transaction.objectStore('marks');
+                
+                // 先删除相关的标记记录
+                const marksIndex = marksStore.index('groupId');
+                const marksRequest = marksIndex.getAllKeys(groupId);
+                
+                marksRequest.onsuccess = () => {
+                    const markIds = marksRequest.result;
+                    console.log('找到相关标记数量:', markIds.length);
+                    
+                    if (markIds.length === 0) {
+                        // 如果没有相关标记，直接删除标记组
+                        const deleteGroupRequest = groupsStore.delete(groupId);
+                        deleteGroupRequest.onsuccess = () => {
+                            console.log('标记组删除成功:', groupId);
+                            resolve();
+                        };
+                        deleteGroupRequest.onerror = () => {
+                            console.error('删除标记组失败:', deleteGroupRequest.error);
+                            reject(deleteGroupRequest.error);
+                        };
+                    } else {
+                        // 删除所有相关标记
+                        let deletedMarks = 0;
+                        const totalMarks = markIds.length;
+                        
+                        markIds.forEach(markId => {
+                            const deleteMarkRequest = marksStore.delete(markId);
+                            deleteMarkRequest.onsuccess = () => {
+                                deletedMarks++;
+                                if (deletedMarks === totalMarks) {
+                                    // 所有标记删除完成后，删除标记组
+                                    const deleteGroupRequest = groupsStore.delete(groupId);
+                                    deleteGroupRequest.onsuccess = () => {
+                                        console.log('标记组及其标记删除成功:', groupId, '删除了', totalMarks, '个标记');
+                                        resolve();
+                                    };
+                                    deleteGroupRequest.onerror = () => {
+                                        console.error('删除标记组失败:', deleteGroupRequest.error);
+                                        reject(deleteGroupRequest.error);
+                                    };
+                                }
+                            };
+                            deleteMarkRequest.onerror = () => {
+                                console.error('删除标记失败:', deleteMarkRequest.error);
+                                // 即使某个标记删除失败，也继续删除其他标记
+                            };
+                        });
+                    }
+                };
+                
+                marksRequest.onerror = () => {
+                    console.error('查找相关标记失败:', marksRequest.error);
+                    reject(marksRequest.error);
+                };
+                
+                // 事务完成事件
+                transaction.oncomplete = () => {
+                    console.log('删除事务完成');
+                };
+                
+                transaction.onerror = () => {
+                    console.error('删除事务失败:', transaction.error);
+                    reject(transaction.error);
+                };
+                
+            } catch (error) {
+                console.error('deleteMarkGroupWithMarks函数内部错误:', error);
+                reject(error);
+            }
         });
     }
 

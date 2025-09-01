@@ -2273,9 +2273,18 @@
                     groups中的id: [...groupIdsInGroups]
                 });
                 
+                // 检查数据类型一致性
+                let hasTypeInconsistency = false;
+                marks.forEach(mark => {
+                    if (mark.groupId !== null && typeof mark.groupId !== 'number') {
+                        console.warn('发现类型不一致的groupId:', mark.groupId, '类型:', typeof mark.groupId);
+                        hasTypeInconsistency = true;
+                    }
+                });
+                
                 // 如果发现不一致，重新保存数据
-                if (groupIdsInMarks.size > 0 && !groupIdsInMarks.has([...groupIdsInGroups][0])) {
-                    console.log('检测到groupId不一致，重新保存数据...');
+                if (groupIdsInMarks.size > 0 && !groupIdsInMarks.has([...groupIdsInGroups][0]) || hasTypeInconsistency) {
+                    console.log('检测到groupId不一致或类型问题，重新保存数据...');
                     await saveMarkData();
                     console.log('数据重新保存完成');
                 }
@@ -2563,7 +2572,7 @@
                     const actualGroupId = markGroups[firstWord];
                     console.log('点击标记组:', groupId, '词汇:', firstWord, '实际groupId:', actualGroupId);
                     
-                    if (actualGroupId) {
+                    if (actualGroupId !== null && actualGroupId !== undefined) {
                         editMarkGroup(actualGroupId);
                     } else {
                         console.error('无法找到词汇对应的groupId:', firstWord);
@@ -2843,11 +2852,21 @@
         
         // 编辑现有组的函数
         async function editMarkGroup(groupId) {
-            console.log('编辑标记组:', groupId);
-            console.log('查找的词汇:', Object.keys(markGroups).filter(w => markGroups[w] === groupId));
+            console.log('编辑标记组:', groupId, '类型:', typeof groupId);
+            
+            // 统一groupId类型处理 - 确保是数字类型
+            const numericGroupId = parseInt(groupId);
+            if (isNaN(numericGroupId)) {
+                console.error('无效的标记组ID:', groupId);
+                alert('标记组ID无效，请刷新页面后重试');
+                return;
+            }
+            
+            console.log('查找的词汇:', Object.keys(markGroups).filter(w => markGroups[w] === numericGroupId));
             console.log('当前markGroups:', markGroups);
             console.log('当前markWords:', markWords);
-            await showEditModal(groupId, false);
+            
+            await showEditModal(numericGroupId, false);
         }
         
         function removeEditImage() {
@@ -2906,44 +2925,24 @@
         async function deleteEditGroup(groupId) {
             if (confirm('确定要删除这个标记组吗？')) {
                 try {
+                    console.log('开始删除标记组:', groupId, '类型:', typeof groupId);
+                    
+                    // 统一groupId类型处理 - 确保是数字类型
+                    const numericGroupId = parseInt(groupId);
+                    if (isNaN(numericGroupId)) {
+                        throw new Error('无效的标记组ID');
+                    }
+                    
                     // 找到该组的所有词
-                    const groupWords = Object.keys(markGroups).filter(w => markGroups[w] === groupId);
+                    const groupWords = Object.keys(markGroups).filter(w => markGroups[w] === numericGroupId);
+                    console.log('找到组内词汇:', groupWords);
                     
-                    // 验证groupId是否存在于数据库中
-                    const allGroups = await dataStore.getAllMarkGroups();
-                    console.log('删除时查找的groupId:', groupId, '类型:', typeof groupId);
-                    
-                    // 尝试多种匹配方式
-                    let targetGroup = allGroups.find(group => group.id === groupId);
-                    if (!targetGroup) {
-                        // 尝试数字匹配
-                        const numericGroupId = parseInt(groupId);
-                        if (!isNaN(numericGroupId)) {
-                            targetGroup = allGroups.find(group => group.id === numericGroupId);
-                        }
-                    }
-                    if (!targetGroup) {
-                        // 尝试字符串匹配
-                        targetGroup = allGroups.find(group => String(group.id) === String(groupId));
+                    if (groupWords.length === 0) {
+                        console.warn('未找到组内词汇，可能数据已损坏');
                     }
                     
-                    if (targetGroup) {
-                        console.log('删除标记组:', targetGroup);
-                        const actualGroupId = targetGroup.id;
-                        
-                        // 删除数据库中的标记组
-                        await dataStore.deleteMarkGroup(actualGroupId);
-                        
-                        // 删除相关的标记记录
-                        const existingMarks = await dataStore.getAllMarks();
-                        for (const mark of existingMarks) {
-                            if (mark.groupId === actualGroupId) {
-                                await dataStore.deleteMark(mark.id);
-                            }
-                        }
-                    } else {
-                        console.warn('数据库中找不到标记组:', groupId);
-                    }
+                    // 使用事务方式删除，确保数据一致性
+                    await dataStore.deleteMarkGroupWithMarks(numericGroupId);
                     
                     // 删除内存中的数据
                     groupWords.forEach(word => {
@@ -2961,11 +2960,11 @@
                     updateMarkList();
                     applyMarks();
                     
-                    console.log('标记组删除成功');
+                    console.log('标记组删除成功:', numericGroupId);
                     
                 } catch (error) {
                     console.error('删除标记组失败:', error);
-                    alert('删除失败：' + error.message);
+                    alert(`删除失败：${error.message}\n\n请刷新页面后重试`);
                 }
             }
         }
@@ -2993,8 +2992,14 @@
             }
             
             try {
+                // 统一groupId类型处理 - 确保是数字类型
+                const numericGroupId = parseInt(groupId);
+                if (isNaN(numericGroupId)) {
+                    throw new Error('无效的标记组ID');
+                }
+                
                 // 找到该组的所有旧词
-                const oldWords = Object.keys(markGroups).filter(w => markGroups[w] === groupId);
+                const oldWords = Object.keys(markGroups).filter(w => markGroups[w] === numericGroupId);
                 
                 // 删除旧词
                 oldWords.forEach(word => {
@@ -3012,7 +3017,7 @@
                     const trimmedWord = word.trim();
                     if (trimmedWord && !markWords.includes(trimmedWord)) {
                         markWords.push(trimmedWord);
-                        markGroups[trimmedWord] = groupId;
+                        markGroups[trimmedWord] = numericGroupId;
                         if (noteInput) {
                             markNotes[trimmedWord] = noteInput;
                         }
@@ -3024,55 +3029,23 @@
                 
                 // 验证groupId是否存在于数据库中
                 const allGroups = await dataStore.getAllMarkGroups();
-                console.log('所有标记组:', allGroups.map(g => ({ id: g.id, type: typeof g.id, name: g.name })));
-                console.log('查找的groupId:', groupId, '类型:', typeof groupId);
-                
-                // 尝试多种匹配方式
-                let targetGroup = allGroups.find(group => group.id === groupId);
-                if (!targetGroup) {
-                    // 尝试数字匹配
-                    const numericGroupId = parseInt(groupId);
-                    if (!isNaN(numericGroupId)) {
-                        targetGroup = allGroups.find(group => group.id === numericGroupId);
-                        console.log('尝试数字匹配:', numericGroupId, '结果:', targetGroup);
-                    }
-                }
-                if (!targetGroup) {
-                    // 尝试字符串匹配
-                    targetGroup = allGroups.find(group => String(group.id) === String(groupId));
-                    console.log('尝试字符串匹配，结果:', targetGroup);
-                }
+                const targetGroup = allGroups.find(group => group.id === numericGroupId);
                 
                 if (!targetGroup) {
-                    console.error('数据库中找不到标记组:', groupId);
+                    console.error('数据库中找不到标记组:', numericGroupId);
                     console.error('可用的标记组:', allGroups.map(g => ({ id: g.id, type: typeof g.id, name: g.name, words: g.words })));
                     throw new Error('在数据库中找不到对应的标记组');
                 }
                 
                 console.log('找到标记组:', targetGroup);
-                const actualGroupId = targetGroup.id;
                 
-                // 更新数据库中的标记组
-                const groupName = `标记组_${actualGroupId}`;
-                await dataStore.updateMarkGroup(actualGroupId, {
-                    name: groupName,
+                // 使用事务方式更新，确保数据一致性
+                await dataStore.updateMarkGroupWithMarks(numericGroupId, {
+                    name: `标记组_${numericGroupId}`,
                     words: newWords,
                     note: noteInput,
                     imageData: newImageData
                 });
-                
-                // 删除旧的标记记录
-                const existingMarks = await dataStore.getAllMarks();
-                for (const mark of existingMarks) {
-                    if (mark.groupId === actualGroupId) {
-                        await dataStore.deleteMark(mark.id);
-                    }
-                }
-                
-                // 添加新的标记记录
-                for (const word of newWords) {
-                    await dataStore.addMark(word, actualGroupId);
-                }
                 
                 // 重新加载标记数据以确保内存数据与数据库同步
                 const updatedMarks = await dataStore.getAllMarks();
@@ -3092,11 +3065,11 @@
                 updateMarkList();
                 applyMarks();
                 
-                console.log('标记组更新成功:', actualGroupId);
+                console.log('标记组更新成功:', numericGroupId);
                 
             } catch (error) {
                 console.error('更新标记组失败:', error);
-                alert('保存失败：' + error.message);
+                alert(`保存失败：${error.message}\n\n请刷新页面后重试`);
             }
         }
         
@@ -3133,13 +3106,19 @@
             }
             
             try {
+                // 统一groupId类型处理 - 确保是数字类型
+                const numericGroupId = parseInt(groupId);
+                if (isNaN(numericGroupId)) {
+                    throw new Error('无效的标记组ID');
+                }
+                
                 // 创建新的标记组
-                const groupName = `标记组_${groupId}`;
-                await dataStore.addMarkGroup(groupName, newWords, noteInput, newImageData);
+                const groupName = `标记组_${numericGroupId}`;
+                const actualGroupId = await dataStore.addMarkGroup(groupName, newWords, noteInput, newImageData);
                 
                 // 添加新的标记记录
                 for (const word of newWords) {
-                    await dataStore.addMark(word, groupId);
+                    await dataStore.addMark(word, actualGroupId);
                 }
                 
                 // 重新加载标记数据以确保内存数据与数据库同步
@@ -3160,11 +3139,11 @@
                 updateMarkList();
                 applyMarks();
                 
-                console.log('新标记组创建成功:', groupId);
+                console.log('新标记组创建成功:', actualGroupId);
                 
             } catch (error) {
                 console.error('创建标记组失败:', error);
-                alert('保存失败：' + error.message);
+                alert(`保存失败：${error.message}\n\n请刷新页面后重试`);
             }
         }
 
@@ -3328,7 +3307,7 @@
                         // 点击注释打开编辑界面
                         markNote.onclick = () => {
                             const groupId = markGroups[match.word];
-                            if (groupId) {
+                            if (groupId !== null && groupId !== undefined) {
                                 editMarkGroup(groupId);
                             }
                         };
@@ -3365,7 +3344,7 @@
                         // 点击图片打开编辑界面
                         markImage.onclick = () => {
                             const groupId = markGroups[match.word];
-                            if (groupId) {
+                            if (groupId !== null && groupId !== undefined) {
                                 editMarkGroup(groupId);
                             }
                         };
@@ -4902,16 +4881,10 @@
             }
             
             try {
-                // 清空标记数据
-                const existingMarks = await dataStore.getAllMarks();
-                for (const mark of existingMarks) {
-                    await dataStore.deleteMark(mark.id);
-                }
+                console.log('开始清空所有标记数据...');
                 
-                const existingGroups = await dataStore.getAllMarkGroups();
-                for (const group of existingGroups) {
-                    await dataStore.deleteMarkGroup(group.id);
-                }
+                // 使用事务方式清空，确保数据一致性
+                await dataStore.clearAll();
                 
                 // 清空内存数据
                 markWords = [];
@@ -4926,10 +4899,11 @@
                 await updateStorageInfo();
                 
                 console.log('所有标记数据已清空');
+                alert('所有标记数据已成功清空');
                 
             } catch (error) {
                 console.error('清空标记数据失败:', error);
-                alert('清空失败：' + error.message);
+                alert(`清空失败：${error.message}\n\n请刷新页面后重试`);
             }
         }
 
