@@ -339,7 +339,7 @@
         }
 
         .bookshelf-content {
-            padding: 20px;
+            padding: 12px;
             height: calc(100vh - 80px);
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
@@ -381,13 +381,13 @@
         .bookshelf-controls {
             display: flex;
             gap: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             position: sticky;
             top: 0;
             background: white;
             z-index: 8;
-            padding: 20px 0 20px 0;
-            margin: 0 0 20px 0;
+            padding: 16px 0 16px 0;
+            margin: 0 0 16px 0;
             border-bottom: 1px solid #f0f0f0;
         }
 
@@ -546,16 +546,16 @@
         .books-list.grid-mode {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 24px;
-            padding: 24px 24px 40px 24px;
+            gap: 16px;
+            padding: 12px 12px 24px 12px;
         }
 
         /* 响应式网格布局 */
         @media (max-width: 768px) {
             .books-list.grid-mode {
                 grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-                gap: 16px;
-                padding: 16px 16px 32px 16px;
+                gap: 12px;
+                padding: 10px 10px 20px 10px;
             }
             
             .book-item.grid-item .book-cover,
@@ -571,8 +571,8 @@
         @media (max-width: 480px) {
             .books-list.grid-mode {
                 grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-                gap: 12px;
-                padding: 12px 12px 24px 12px;
+                gap: 8px;
+                padding: 8px 8px 16px 8px;
             }
             
             .book-item.grid-item .book-cover,
