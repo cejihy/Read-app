@@ -537,7 +537,7 @@
         /* 响应式网格布局 */
         @media (max-width: 768px) {
             .books-list.grid-mode {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
                 gap: 24px;
                 padding: 24px;
             }
@@ -554,7 +554,7 @@
 
         @media (max-width: 480px) {
             .books-list.grid-mode {
-                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
                 gap: 20px;
                 padding: 20px;
             }
@@ -578,17 +578,40 @@
             cursor: pointer;
             justify-content: center;
             align-items: center;
-            background: transparent;
-            border: none;
+            background: transparent !important;
+            border: none !important;
             border-radius: 0;
+            box-shadow: none !important;
+            margin: 0;
         }
 
         .book-item.grid-item:hover {
             transform: translateY(-4px);
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
         }
 
         .book-item.grid-item:active {
             transform: translateY(-2px);
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        /* 确保网格模式下不继承普通book-item的样式 */
+        .books-list.grid-mode .book-item {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .books-list.grid-mode .book-item:hover {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
         }
 
         /* 移动设备上减少动画效果 */
