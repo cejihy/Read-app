@@ -529,23 +529,23 @@
 
         .books-list.grid-mode {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 24px;
-            padding: 24px;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 20px;
+            padding: 12px;
         }
 
         /* 响应式网格布局 */
         @media (max-width: 768px) {
             .books-list.grid-mode {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-                gap: 16px;
-                padding: 16px;
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+                gap: 14px;
+                padding: 10px;
             }
             
             .book-item.grid-item .book-cover,
             .book-item.grid-item .book-icon {
-                width: 80px;
-                height: 120px;
+                width: 90px;
+                height: 130px;
                 background: transparent;
                 border: none;
                 box-shadow: none;
@@ -554,15 +554,15 @@
 
         @media (max-width: 480px) {
             .books-list.grid-mode {
-                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-                gap: 12px;
-                padding: 12px;
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+                gap: 10px;
+                padding: 8px;
             }
             
             .book-item.grid-item .book-cover,
             .book-item.grid-item .book-icon {
-                width: 60px;
-                height: 90px;
+                width: 70px;
+                height: 100px;
                 background: transparent;
                 border: none;
                 box-shadow: none;
@@ -605,10 +605,10 @@
 
 
         .book-item.grid-item .book-cover {
-            width: 100px;
-            height: 140px;
+            width: 110px;
+            height: 150px;
             margin: 0;
-            border-radius: 6px;
+            border-radius: 8px;
             object-fit: cover;
             border: 1px solid #e0e0e0;
             background: #f8f9fa;
@@ -617,10 +617,10 @@
         }
 
         .book-item.grid-item .book-icon {
-            width: 100px;
-            height: 140px;
+            width: 110px;
+            height: 150px;
             margin: 0;
-            border-radius: 6px;
+            border-radius: 8px;
             background: #f8f9fa;
             border: 1px solid #e0e0e0;
             display: flex;
