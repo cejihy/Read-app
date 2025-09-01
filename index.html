@@ -334,13 +334,14 @@
             background: white;
             transition: transform 0.3s ease;
             z-index: 1001;
-            overflow-y: scroll !important;
+            overflow-y: auto !important;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
             -ms-overflow-style: none;
             transform: translateY(100%);
             padding-top: env(safe-area-inset-top);
             touch-action: pan-y;
+            will-change: transform;
         }
 
         .bookshelf-panel::-webkit-scrollbar {
@@ -1462,6 +1463,20 @@
             height: 100%;
         }
 
+        /* 书架面板显示时允许滚动 */
+        html.bookshelf-open, body.bookshelf-open {
+            overflow: auto !important;
+            position: static !important;
+            height: auto !important;
+        }
+
+        /* 确保书架面板可以滚动 */
+        .bookshelf-panel.show {
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            touch-action: pan-y !important;
+        }
+
         /* 允许文本选择 */
         #viewer {
             -webkit-user-select: text;
@@ -1787,6 +1802,7 @@
              hideUnifiedPanel();
              hideSettings();
             hideBookshelf();
+            document.documentElement.classList.remove('bookshelf-open');
             document.body.classList.remove('bookshelf-open');
          }
 
@@ -2502,6 +2518,7 @@
         // 显示书架面板
         function showBookshelf() {
             showPanel('bookshelf-panel');
+            document.documentElement.classList.add('bookshelf-open');
             document.body.classList.add('bookshelf-open');
             
             // 恢复保存的视图模式
@@ -2518,6 +2535,7 @@
         function hideBookshelf() {
             document.getElementById('bookshelf-panel').classList.remove('show');
             document.getElementById('overlay').classList.remove('show');
+            document.documentElement.classList.remove('bookshelf-open');
             document.body.classList.remove('bookshelf-open');
         }
 
