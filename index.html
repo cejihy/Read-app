@@ -529,23 +529,25 @@
 
         .books-list.grid-mode {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 20px;
-            padding: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 180px));
+            gap: 32px;
+            padding: 32px;
+            justify-content: center;
         }
 
         /* 响应式网格布局 */
         @media (max-width: 768px) {
             .books-list.grid-mode {
-                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-                gap: 14px;
-                padding: 10px;
+                grid-template-columns: repeat(auto-fit, minmax(140px, 160px));
+                gap: 24px;
+                padding: 24px;
+                justify-content: center;
             }
             
             .book-item.grid-item .book-cover,
             .book-item.grid-item .book-icon {
-                width: 90px;
-                height: 130px;
+                width: 100px;
+                height: 140px;
                 background: transparent;
                 border: none;
                 box-shadow: none;
@@ -554,15 +556,16 @@
 
         @media (max-width: 480px) {
             .books-list.grid-mode {
-                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-                gap: 10px;
-                padding: 8px;
+                grid-template-columns: repeat(auto-fit, minmax(120px, 140px));
+                gap: 20px;
+                padding: 20px;
+                justify-content: center;
             }
             
             .book-item.grid-item .book-cover,
             .book-item.grid-item .book-icon {
-                width: 70px;
-                height: 100px;
+                width: 80px;
+                height: 120px;
                 background: transparent;
                 border: none;
                 box-shadow: none;
@@ -605,20 +608,20 @@
 
 
         .book-item.grid-item .book-cover {
-            width: 110px;
-            height: 150px;
+            width: 120px;
+            height: 160px;
             margin: 0;
             border-radius: 8px;
             object-fit: cover;
             border: 1px solid #e0e0e0;
             background: #f8f9fa;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             transition: all 0.2s ease;
         }
 
         .book-item.grid-item .book-icon {
-            width: 110px;
-            height: 150px;
+            width: 120px;
+            height: 160px;
             margin: 0;
             border-radius: 8px;
             background: #f8f9fa;
@@ -626,9 +629,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
+            font-size: 42px;
             color: #6c757d;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             transition: all 0.2s ease;
         }
 
