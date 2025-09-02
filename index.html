@@ -2052,35 +2052,41 @@
          
                    
 
-        // 防抖的标记应用和目录更新
-        const debouncedApplyMarks = debounce(applyMarks, 150);
-        const debouncedApplyMarksWithRetry = debounce(applyMarksWithRetry, 150);
-        const debouncedUpdateTOCHighlight = debounce(updateTOCHighlight, 100);
+        // 优化的防抖机制 - 增加延迟时间，减少不必要的调用
+        const debouncedApplyMarks = debounce(applyMarks, 300);
+        const debouncedApplyMarksWithRetry = debounce(applyMarksWithRetry, 300);
+        const debouncedUpdateTOCHighlight = debounce(updateTOCHighlight, 200);
 
-        // 防抖的阅读时间更新（5秒内只更新一次）
+        // 优化的阅读时间更新（10秒内只更新一次，减少数据库操作）
         const debouncedUpdateLastRead = debounce(async (bookName) => {
             if (bookName) {
                 try {
                     console.log('开始更新阅读时间:', bookName);
                     await dataStore.updateBookLastRead(bookName);
                     
-                    // 重新获取书籍数据并更新排序
-                    const books = await dataStore.getAllBooks();
-                    cachedBooks = books;
-                    renderBookshelf();
-                    } catch (error) {
-                        console.error('更新书籍阅读时间失败:', error);
+                    // 减少书架更新频率，只在必要时更新
+                    if (Date.now() - (window.lastBookshelfUpdate || 0) > 30000) { // 30秒内只更新一次
+                        const books = await dataStore.getAllBooks();
+                        cachedBooks = books;
+                        renderBookshelf();
+                        window.lastBookshelfUpdate = Date.now();
                     }
+                } catch (error) {
+                    console.error('更新书籍阅读时间失败:', error);
                 }
-        }, 5000);
+            }
+        }, 10000);
 
+        // 优化的翻页函数 - 减少不必要的标记重新应用
         async function prevPage() {
             if (rendition) {
                 await rendition.prev();
                 // 防抖更新书籍最后阅读时间
                 debouncedUpdateLastRead(currentBookFileName);
-                // 批量更新UI
-                debouncedApplyMarksWithRetry();
+                // 只在有标记词时才应用标记
+                if (markWords.length > 0) {
+                    debouncedApplyMarksWithRetry();
+                }
                 debouncedUpdateTOCHighlight();
             }
         }
@@ -2090,8 +2096,10 @@
                 await rendition.next();
                 // 防抖更新书籍最后阅读时间
                 debouncedUpdateLastRead(currentBookFileName);
-                // 批量更新UI
-                debouncedApplyMarksWithRetry();
+                // 只在有标记词时才应用标记
+                if (markWords.length > 0) {
+                    debouncedApplyMarksWithRetry();
+                }
                 debouncedUpdateTOCHighlight();
             }
         }
@@ -3197,6 +3205,7 @@
 
 
 
+        // 优化的标记应用函数 - 大幅提升性能
         function applyMarks() {
             if (!rendition || markWords.length === 0) return;
             
@@ -3204,245 +3213,253 @@
             const iframe = viewer.querySelector('iframe');
             if (!iframe || !iframe.contentDocument) return;
             
-            // 缓存常用值
             const doc = iframe.contentDocument;
             const body = doc.body;
+            
+            // 检查是否已经应用过标记（避免重复处理）
+            if (body.hasAttribute('data-marks-applied')) {
+                return;
+            }
             
             // 移除之前的标记
             const existingMarks = doc.querySelectorAll('.mark-note, .mark-image');
             existingMarks.forEach(mark => mark.remove());
             
-            // 预编译正则表达式和缓存标记数据
-            const wordData = markWords.map(word => ({
-                word,
-                regex: new RegExp(`(${word})`, 'gi'),
-                note: markNotes[word] || '',
-                image: markImages[word] || ''
-            }));
+            // 预编译正则表达式和缓存标记数据（只编译一次）
+            if (!window.cachedWordData || window.cachedWordData.length !== markWords.length) {
+                window.cachedWordData = markWords.map(word => ({
+                    word,
+                    regex: new RegExp(`(${word})`, 'gi'),
+                    note: markNotes[word] || '',
+                    image: markImages[word] || ''
+                }));
+            }
+            const wordData = window.cachedWordData;
             
-            // 改进的文本节点查找和处理
-            function processTextNodes() {
+            // 优化的文本节点查找 - 使用更高效的选择器
+            function findTextNodes() {
                 const textNodes = [];
-                const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
-                    acceptNode: function(node) {
-                        // 过滤掉脚本和样式中的文本
-                        const parent = node.parentElement;
-                        if (!parent) return NodeFilter.FILTER_REJECT;
-                        
-                        const tagName = parent.tagName.toLowerCase();
-                        if (tagName === 'script' || tagName === 'style') {
-                            return NodeFilter.FILTER_REJECT;
-                        }
-                        
-                        // 检查是否在特殊元素中（标题、导航等）
-                        const className = typeof parent.className === 'string' ? parent.className.toLowerCase() : '';
-                        const id = parent.id ? parent.id.toLowerCase() : '';
-                        
-                        // 检查是否在标题或导航元素中
-                        const isHeading = tagName.match(/^h[1-6]$/);
-                        const isNavigation = tagName === 'nav' || (className && className.includes('nav')) || (id && id.includes('nav'));
-                        const isToc = (className && className.includes('toc')) || (id && id.includes('toc'));
-                        const isTitle = (className && className.includes('title')) || (id && id.includes('title'));
-                        const isHeader = (className && className.includes('header')) || (id && id.includes('header'));
-                        
-                        if (isHeading || isNavigation || isToc || isTitle || isHeader) {
-                            return NodeFilter.FILTER_REJECT;
-                        }
-                        
-                        // 检查是否在epub.js的特殊元素中
-                        const isEpubSpecial = (className && className.includes('epub')) || 
-                                            (className && className.includes('chapter')) || 
-                                            (className && className.includes('section')) ||
-                                            parent.closest('.epub-container') ||
-                                            parent.closest('.chapter') ||
-                                            parent.closest('.section');
-                        
-                        // 检查是否在标题相关的元素中
-                        const isInTitle = parent.closest('h1, h2, h3, h4, h5, h6, .title, .chapter-title, .section-title');
-                        
-                        if (isEpubSpecial || isInTitle) {
-                            return NodeFilter.FILTER_REJECT;
-                        }
-                        
-                        // 确保只在正文段落中应用标记
-                        const isInParagraph = parent.tagName === 'P' || 
-                                            parent.tagName === 'DIV' ||
-                                            parent.closest('p, div');
-                        
-                        if (!isInParagraph) {
-                            return NodeFilter.FILTER_REJECT;
-                        }
-                        
-                        // 检查文本内容是否包含标记词
-                        const text = node.textContent;
-                        const hasMarkWords = wordData.some(({ word }) => 
-                            text.toLowerCase().includes(word.toLowerCase())
-                        );
-                        
-                        return hasMarkWords ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-                    }
-                }, false);
+                // 只查找段落和div中的文本节点，避免遍历整个文档
+                const paragraphs = doc.querySelectorAll('p, div');
                 
-                let node;
-                while (node = walker.nextNode()) {
-                    textNodes.push(node);
-                }
+                paragraphs.forEach(paragraph => {
+                    // 跳过特殊元素
+                    if (paragraph.closest('h1, h2, h3, h4, h5, h6, .title, .chapter-title, .section-title, .epub-container, .chapter, .section')) {
+                        return;
+                    }
+                    
+                    // 检查段落是否包含标记词
+                    const text = paragraph.textContent;
+                    const hasMarkWords = wordData.some(({ word }) => 
+                        text.toLowerCase().includes(word.toLowerCase())
+                    );
+                    
+                    if (!hasMarkWords) return;
+                    
+                    // 只处理包含标记词的段落中的文本节点
+                    const walker = doc.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT, {
+                        acceptNode: function(node) {
+                            const parent = node.parentElement;
+                            if (!parent) return NodeFilter.FILTER_REJECT;
+                            
+                            // 跳过脚本和样式
+                            const tagName = parent.tagName.toLowerCase();
+                            if (tagName === 'script' || tagName === 'style') {
+                                return NodeFilter.FILTER_REJECT;
+                            }
+                            
+                            // 检查文本是否包含标记词
+                            const nodeText = node.textContent;
+                            return wordData.some(({ word }) => 
+                                nodeText.toLowerCase().includes(word.toLowerCase())
+                            ) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+                        }
+                    }, false);
+                    
+                    let node;
+                    while (node = walker.nextNode()) {
+                        textNodes.push(node);
+                    }
+                });
                 
                 return textNodes;
             }
             
-            // 处理单个文本节点
-            function processTextNode(textNode) {
-                const text = textNode.textContent;
+            // 优化的文本节点处理 - 批量处理
+            function processTextNodes(textNodes) {
+                // 使用DocumentFragment批量处理，减少DOM操作
+                const fragments = new Map();
                 
-                // 收集所有匹配项，按位置排序
-                const matches = [];
-                wordData.forEach(({ word, regex, note, image }) => {
-                    if (!text.toLowerCase().includes(word.toLowerCase())) return;
+                textNodes.forEach(textNode => {
+                    const text = textNode.textContent;
+                    const matches = [];
                     
-                    regex.lastIndex = 0; // 重置正则表达式状态
-                    let match;
-                    while ((match = regex.exec(text)) !== null) {
-                        matches.push({
-                            start: match.index,
-                            end: match.index + match[1].length,
-                            word: match[1],
-                            note,
-                            image
-                        });
-                    }
-                });
-                
-                // 如果没有匹配项，跳过
-                if (matches.length === 0) return;
-                
-                // 按位置排序，处理重叠匹配
-                matches.sort((a, b) => a.start - b.start);
-                
-                // 合并重叠的匹配项
-                const mergedMatches = [];
-                for (const match of matches) {
-                    if (mergedMatches.length === 0) {
-                        mergedMatches.push(match);
-                        continue;
-                    }
-                    
-                    const lastMatch = mergedMatches[mergedMatches.length - 1];
-                    
-                    // 如果当前匹配与上一个重叠，选择更长的匹配
-                    if (match.start <= lastMatch.end) {
-                        if (match.end - match.start > lastMatch.end - lastMatch.start) {
-                            mergedMatches[mergedMatches.length - 1] = match;
+                    // 收集匹配项
+                    wordData.forEach(({ word, regex, note, image }) => {
+                        if (!text.toLowerCase().includes(word.toLowerCase())) return;
+                        
+                        regex.lastIndex = 0;
+                        let match;
+                        while ((match = regex.exec(text)) !== null) {
+                            matches.push({
+                                start: match.index,
+                                end: match.index + match[1].length,
+                                word: match[1],
+                                note,
+                                image
+                            });
                         }
-                    } else {
-                        mergedMatches.push(match);
-                    }
-                }
-                
-                // 构建替换内容
-                const fragment = doc.createDocumentFragment();
-                let lastIndex = 0;
-                
-                mergedMatches.forEach(match => {
-                    // 添加匹配前的文本
-                    if (match.start > lastIndex) {
-                        fragment.appendChild(doc.createTextNode(text.slice(lastIndex, match.start)));
-                    }
+                    });
                     
-                    // 添加匹配的文本
-                    fragment.appendChild(doc.createTextNode(match.word));
+                    if (matches.length === 0) return;
                     
-                    // 添加标记内容
-                    if (match.note) {
-                        const markNote = doc.createElement('span');
-                        markNote.className = 'mark-note';
-                        markNote.textContent = match.note;
-                        markNote.style.cssText = `
-                            margin-left: 4px;
-                            font-size: 0.9em;
-                            color: #666;
-                            cursor: pointer;
-                            padding: 1px 3px;
-                            border-radius: 2px;
-                            transition: background-color 0.2s;
-                        `;
+                    // 合并重叠匹配
+                    matches.sort((a, b) => a.start - b.start);
+                    const mergedMatches = [];
+                    
+                    for (const match of matches) {
+                        if (mergedMatches.length === 0) {
+                            mergedMatches.push(match);
+                            continue;
+                        }
                         
-                        // 点击注释打开编辑界面
-                        markNote.onclick = () => {
-                            const groupId = markGroups[match.word];
-                            if (groupId !== null && groupId !== undefined) {
-                                editMarkGroup(groupId);
+                        const lastMatch = mergedMatches[mergedMatches.length - 1];
+                        if (match.start <= lastMatch.end) {
+                            if (match.end - match.start > lastMatch.end - lastMatch.start) {
+                                mergedMatches[mergedMatches.length - 1] = match;
                             }
-                        };
-                        
-                        markNote.onmouseenter = function() {
-                            this.style.backgroundColor = '#f0f0f0';
-                        };
-                        
-                        markNote.onmouseleave = function() {
-                            this.style.backgroundColor = 'transparent';
-                        };
-                        
-                        fragment.appendChild(markNote);
+                        } else {
+                            mergedMatches.push(match);
+                        }
                     }
                     
-                    if (match.image) {
-                        const markImage = doc.createElement('img');
-                        markImage.className = 'mark-image';
-                        markImage.src = match.image;
-                        markImage.style.cssText = `
-                            height: 1.2em;
-                            width: 1.2em;
-                            margin-left: 4px;
-                            border-radius: 2px;
-                            border: 1px solid #ddd;
-                            vertical-align: middle;
-                            cursor: pointer;
-                            transition: opacity 0.2s;
-                            object-fit: cover;
-                        `;
-                        markImage.onerror = () => {
-                            console.error('图片加载失败:', match.image.substring(0, 50) + '...');
-                        };
-                        // 点击图片打开编辑界面
-                        markImage.onclick = () => {
-                            const groupId = markGroups[match.word];
-                            if (groupId !== null && groupId !== undefined) {
-                                editMarkGroup(groupId);
-                            }
-                        };
-                        markImage.onmouseenter = function() {
-                            this.style.opacity = '0.8';
-                        };
-                        markImage.onmouseleave = function() {
-                            this.style.opacity = '1';
-                        };
-                        fragment.appendChild(markImage);
+                    // 创建替换片段
+                    const fragment = doc.createDocumentFragment();
+                    let lastIndex = 0;
+                    
+                    mergedMatches.forEach(match => {
+                        if (match.start > lastIndex) {
+                            fragment.appendChild(doc.createTextNode(text.slice(lastIndex, match.start)));
+                        }
+                        
+                        fragment.appendChild(doc.createTextNode(match.word));
+                        
+                        // 创建标记元素（复用样式）
+                        if (match.note) {
+                            const markNote = createMarkNote(match.note, match.word);
+                            fragment.appendChild(markNote);
+                        }
+                        
+                        if (match.image) {
+                            const markImage = createMarkImage(match.image, match.word);
+                            fragment.appendChild(markImage);
+                        }
+                        
+                        lastIndex = match.end;
+                    });
+                    
+                    if (lastIndex < text.length) {
+                        fragment.appendChild(doc.createTextNode(text.slice(lastIndex)));
                     }
                     
-                    lastIndex = match.end;
+                    if (fragment.childNodes.length > 0) {
+                        fragments.set(textNode, fragment);
+                    }
                 });
                 
-                // 添加剩余文本
-                if (lastIndex < text.length) {
-                    fragment.appendChild(doc.createTextNode(text.slice(lastIndex)));
-                }
+                return fragments;
+            }
+            
+            // 创建标记注释元素（复用函数）
+            function createMarkNote(note, word) {
+                const markNote = doc.createElement('span');
+                markNote.className = 'mark-note';
+                markNote.textContent = note;
+                markNote.style.cssText = `
+                    margin-left: 4px;
+                    font-size: 0.9em;
+                    color: #666;
+                    cursor: pointer;
+                    padding: 1px 3px;
+                    border-radius: 2px;
+                    transition: background-color 0.2s;
+                `;
                 
-                // 替换节点
-                if (fragment.childNodes.length > 0) {
-                    textNode.parentNode.replaceChild(fragment, textNode);
-                }
+                markNote.onclick = () => {
+                    const groupId = markGroups[word];
+                    if (groupId !== null && groupId !== undefined) {
+                        editMarkGroup(groupId);
+                    }
+                };
+                
+                markNote.onmouseenter = function() {
+                    this.style.backgroundColor = '#f0f0f0';
+                };
+                
+                markNote.onmouseleave = function() {
+                    this.style.backgroundColor = 'transparent';
+                };
+                
+                return markNote;
+            }
+            
+            // 创建标记图片元素（复用函数）
+            function createMarkImage(image, word) {
+                const markImage = doc.createElement('img');
+                markImage.className = 'mark-image';
+                markImage.src = image;
+                markImage.style.cssText = `
+                    height: 1.2em;
+                    width: 1.2em;
+                    margin-left: 4px;
+                    border-radius: 2px;
+                    border: 1px solid #ddd;
+                    vertical-align: middle;
+                    cursor: pointer;
+                    transition: opacity 0.2s;
+                    object-fit: cover;
+                `;
+                
+                markImage.onerror = () => {
+                    console.error('图片加载失败:', image.substring(0, 50) + '...');
+                };
+                
+                markImage.onclick = () => {
+                    const groupId = markGroups[word];
+                    if (groupId !== null && groupId !== undefined) {
+                        editMarkGroup(groupId);
+                    }
+                };
+                
+                markImage.onmouseenter = function() {
+                    this.style.opacity = '0.8';
+                };
+                
+                markImage.onmouseleave = function() {
+                    this.style.opacity = '1';
+                };
+                
+                return markImage;
             }
             
             // 主处理逻辑
             try {
-                const textNodes = processTextNodes();
+                const textNodes = findTextNodes();
+                if (textNodes.length === 0) return;
+                
                 console.log(`找到 ${textNodes.length} 个包含标记词的文本节点`);
                 
-                // 批量处理文本节点
-                textNodes.forEach(processTextNode);
+                // 批量处理所有文本节点
+                const fragments = processTextNodes(textNodes);
                 
-                // 验证标记是否成功应用
+                // 批量替换节点（减少DOM操作）
+                fragments.forEach((fragment, textNode) => {
+                    textNode.parentNode.replaceChild(fragment, textNode);
+                });
+                
+                // 标记已处理，避免重复处理
+                body.setAttribute('data-marks-applied', 'true');
+                
                 const appliedMarks = doc.querySelectorAll('.mark-note, .mark-image');
                 console.log(`成功应用 ${appliedMarks.length} 个标记`);
                 
@@ -3451,17 +3468,31 @@
             }
         }
 
-        // 改进的标记应用函数，支持延迟重试
-        function applyMarksWithRetry(maxRetries = 3, delay = 500) {
+        // 优化的标记重试函数 - 减少不必要的重试，提升性能
+        function applyMarksWithRetry(maxRetries = 2, delay = 800) {
+            // 如果没有标记词，直接返回
+            if (markWords.length === 0) {
+                return;
+            }
+            
             let retryCount = 0;
             
             function attemptApply() {
                 try {
+                    // 检查是否已经有标记应用
+                    const viewer = document.getElementById('viewer');
+                    const iframe = viewer.querySelector('iframe');
+                    if (iframe && iframe.contentDocument) {
+                        const existingMarks = iframe.contentDocument.querySelectorAll('.mark-note, .mark-image');
+                        if (existingMarks.length > 0) {
+                            console.log(`标记已存在，跳过应用，共 ${existingMarks.length} 个标记`);
+                            return;
+                        }
+                    }
+                    
                     applyMarks();
                     
                     // 验证标记是否成功应用
-                    const viewer = document.getElementById('viewer');
-                    const iframe = viewer.querySelector('iframe');
                     if (iframe && iframe.contentDocument) {
                         const appliedMarks = iframe.contentDocument.querySelectorAll('.mark-note, .mark-image');
                         if (appliedMarks.length > 0) {
@@ -3470,11 +3501,13 @@
                         }
                     }
                     
-                    // 如果标记数量为0但应该有标记，尝试重试
-                    if (markWords.length > 0 && retryCount < maxRetries) {
+                    // 只在必要时重试，减少重试次数
+                    if (retryCount < maxRetries) {
                         retryCount++;
                         console.log(`标记应用可能失败，${delay}ms后进行第${retryCount}次重试...`);
                         setTimeout(attemptApply, delay);
+                    } else {
+                        console.log('标记应用重试次数已达上限，停止重试');
                     }
                     
                 } catch (error) {
@@ -3490,43 +3523,63 @@
             attemptApply();
         }
 
-        // 监听iframe内容变化，自动重新应用标记
+        // 优化的标记观察器 - 减少不必要的DOM监听和标记应用
         function setupMarkObserver() {
             const viewer = document.getElementById('viewer');
             if (!viewer) return;
             
+            // 只在有标记词时才设置观察器
+            if (markWords.length === 0) {
+                return () => {}; // 返回空清理函数
+            }
+            
             // 监听iframe的加载
             const observer = new MutationObserver((mutations) => {
+                let shouldApplyMarks = false;
+                
                 mutations.forEach((mutation) => {
                     if (mutation.type === 'childList') {
                         mutation.addedNodes.forEach((node) => {
                             if (node.tagName === 'IFRAME') {
                                 console.log('检测到新的iframe，等待加载完成后应用标记...');
+                                shouldApplyMarks = true;
                                 
                                 // 等待iframe加载完成
                                 node.addEventListener('load', () => {
                                     console.log('iframe加载完成，应用标记...');
+                                    // 增加延迟，确保内容完全渲染
                                     setTimeout(() => {
-                                        applyMarksWithRetry();
-                                    }, 300);
+                                        if (markWords.length > 0) {
+                                            applyMarksWithRetry();
+                                        }
+                                    }, 500);
                                 });
                                 
                                 // 如果iframe已经加载完成
                                 if (node.contentDocument && node.contentDocument.readyState === 'complete') {
                                     console.log('iframe已加载完成，立即应用标记...');
                                     setTimeout(() => {
-                                        applyMarksWithRetry();
-                                    }, 100);
+                                        if (markWords.length > 0) {
+                                            applyMarksWithRetry();
+                                        }
+                                    }, 200);
                                 }
                             }
                         });
                     }
                 });
+                
+                // 批量处理，避免频繁调用
+                if (shouldApplyMarks && markWords.length > 0) {
+                    // 使用防抖，避免重复调用
+                    debouncedApplyMarksWithRetry();
+                }
             });
             
+            // 只监听必要的DOM变化
             observer.observe(viewer, {
                 childList: true,
-                subtree: true
+                subtree: false // 不监听子树变化，减少性能开销
             });
             
             // 清理函数
@@ -3731,19 +3784,42 @@
             }
         }
 
-        // 内存清理函数
+        // 优化的内存清理函数 - 更全面的清理和更高的清理频率
         function cleanupMemory() {
             try {
                 // 清理无用的DOM元素引用
-                const unusedElements = document.querySelectorAll('.temp-element, .loading-element');
+                const unusedElements = document.querySelectorAll('.temp-element, .loading-element, .mark-note, .mark-image');
                 unusedElements.forEach(element => {
-                    if (element && element.parentNode) {
+                    if (element && element.parentNode && !element.isConnected) {
                         element.parentNode.removeChild(element);
                     }
                 });
                 
-                // 清理事件监听器（如果有的话）
-                // 这里可以添加清理特定事件监听器的代码
+                // 清理已断开连接的iframe
+                const iframes = document.querySelectorAll('iframe');
+                iframes.forEach(iframe => {
+                    if (!iframe.isConnected) {
+                        iframe.remove();
+                    }
+                });
+                
+                // 清理缓存的正则表达式（如果标记词发生变化）
+                if (window.cachedWordData && window.cachedWordData.length !== markWords.length) {
+                    delete window.cachedWordData;
+                }
+                
+                // 清理已处理的标记属性
+                const processedBodies = document.querySelectorAll('[data-marks-applied]');
+                processedBodies.forEach(body => {
+                    if (!body.isConnected) {
+                        body.removeAttribute('data-marks-applied');
+                    }
+                });
+                
+                // 强制垃圾回收（如果浏览器支持）
+                if (window.gc) {
+                    window.gc();
+                }
                 
                 console.log('内存清理完成');
             } catch (error) {
@@ -3751,8 +3827,8 @@
             }
         }
 
-        // 定期清理内存（每5分钟）
-        setInterval(cleanupMemory, 5 * 60 * 1000);
+        // 增加内存清理频率（每2分钟）
+        setInterval(cleanupMemory, 2 * 60 * 1000);
 
         // 更新功能
         function initUpdateFeature() {
@@ -4345,6 +4421,38 @@
             // 可以在这里添加错误上报逻辑
         });
 
+        // 性能监控函数
+        function monitorPerformance() {
+            // 监控内存使用
+            if ('memory' in performance) {
+                const memory = performance.memory;
+                const usedMB = Math.round(memory.usedJSHeapSize / 1024 / 1024);
+                const totalMB = Math.round(memory.totalJSHeapSize / 1024 / 1024);
+                
+                if (usedMB > 100) { // 如果内存使用超过100MB
+                    console.warn(`内存使用较高: ${usedMB}MB / ${totalMB}MB`);
+                    // 触发额外的内存清理
+                    cleanupMemory();
+                }
+            }
+            
+            // 监控长任务
+            if ('PerformanceObserver' in window) {
+                try {
+                    const observer = new PerformanceObserver((list) => {
+                        list.getEntries().forEach((entry) => {
+                            if (entry.duration > 50) { // 超过50ms的任务
+                                console.warn('检测到长任务:', entry.name, entry.duration + 'ms');
+                            }
+                        });
+                    });
+                    observer.observe({ entryTypes: ['longtask'] });
+                } catch (e) {
+                    // 忽略错误
+                }
+            }
+        }
+
         // 初始化应用
         initApp().then(async () => {
             // 等待一小段时间确保数据库完全初始化
@@ -4358,6 +4466,18 @@
             document.getElementById('floating-bookmark').style.display = 'none';
             // 初始化书签拖拽功能
             initBookmarkDrag();
+            
+            // 启动性能监控
+            monitorPerformance();
+            
+            console.log('应用初始化完成，性能优化已启用');
+        console.log('性能优化包括:');
+        console.log('- 标记应用算法优化（减少DOM操作，使用缓存）');
+        console.log('- 防抖机制优化（增加延迟时间）');
+        console.log('- 内存清理优化（更频繁的清理）');
+        console.log('- 数据库操作优化（减少更新频率）');
+        console.log('- 图片压缩优化（减少内存占用）');
+        console.log('- 性能监控已启动');
         }).catch(error => {
             console.error('应用初始化失败:', error);
             // 显示错误提示
@@ -4402,9 +4522,18 @@
             document.body.classList.add('offline');
         });
 
-        // 图片压缩和优化函数
-        function compressImage(file, maxWidth = 800, maxHeight = 600, quality = 0.8) {
+        // 优化的图片压缩函数 - 减少内存占用，提升性能
+        function compressImage(file, maxWidth = 600, maxHeight = 450, quality = 0.7) {
             return new Promise((resolve, reject) => {
+                // 如果文件太小，直接返回原文件
+                if (file.size < 100 * 1024) { // 小于100KB
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => reject(new Error('文件读取失败'));
+                    reader.readAsDataURL(file);
+                    return;
+                }
+                
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
@@ -4417,7 +4546,7 @@
                 
                 img.onload = function() {
                     try {
-                        // 计算新的尺寸
+                        // 计算新的尺寸（更激进的压缩）
                         let { width, height } = img;
                         if (width > maxWidth) {
                             height = (height * maxWidth) / width;
@@ -4435,17 +4564,16 @@
                         // 绘制图片
                         ctx.drawImage(img, 0, 0, width, height);
                         
-                        // 直接使用JPEG格式，确保兼容性
+                        // 使用JPEG格式，降低质量以减少文件大小
                         const format = 'image/jpeg';
-                        const finalQuality = Math.min(quality, 0.9); // JPEG质量限制
+                        const finalQuality = Math.min(quality, 0.7); // 降低质量上限
                         
                         let compressedDataUrl;
                         try {
                             compressedDataUrl = canvas.toDataURL(format, finalQuality);
                         } catch (error) {
                             console.log('格式转换失败，尝试JPEG:', error);
-                            // 如果指定格式失败，尝试JPEG
-                            compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                            compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
                         }
                         
                         // 验证压缩效果
@@ -4460,16 +4588,15 @@
                             质量: finalQuality
                         });
                         
-                        // 如果压缩效果不好，降低质量重试
-                        if (compressedSize > file.size) {
-                            console.log('压缩效果不佳，降低质量重试');
+                        // 如果压缩效果不好，进一步降低质量
+                        if (compressedSize > file.size * 0.8) {
+                            console.log('压缩效果不佳，进一步降低质量');
                             try {
-                                const retryDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                                const retryDataUrl = canvas.toDataURL('image/jpeg', 0.5);
                                 const retrySize = Math.round(retryDataUrl.length * 0.75);
                                 
                                 if (retrySize < compressedSize) {
                                     console.log('使用更低质量:', retrySize);
-                                    URL.revokeObjectURL(url);
                                     resolve(retryDataUrl);
                                     return;
                                 }
@@ -4478,27 +4605,30 @@
                             }
                         }
                         
-                        // 清理临时URL
-                        URL.revokeObjectURL(url);
                         resolve(compressedDataUrl);
                         
                     } catch (error) {
                         console.error('图片压缩失败:', error);
-                        // 清理临时URL
-                        URL.revokeObjectURL(url);
                         reject(error);
+                    } finally {
+                        // 清理canvas内存
+                        canvas.width = 0;
+                        canvas.height = 0;
                     }
                 };
                 
                 img.onerror = function() {
-                    // 清理临时URL
-                    URL.revokeObjectURL(url);
                     reject(new Error('图片加载失败'));
                 };
                 
-                // 创建临时URL
+                // 使用createObjectURL减少内存占用
                 const url = URL.createObjectURL(file);
                 img.src = url;
+                
+                // 图片加载完成后清理URL
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                };
             });
         }
 
