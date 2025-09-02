@@ -3205,7 +3205,7 @@
 
 
 
-        // 优化的标记应用函数 - 大幅提升性能
+        // 优化的标记应用函数 - 确保所有文字都被标记
         function applyMarks() {
             if (!rendition || markWords.length === 0) return;
             
@@ -3229,58 +3229,50 @@
             if (!window.cachedWordData || window.cachedWordData.length !== markWords.length) {
                 window.cachedWordData = markWords.map(word => ({
                     word,
-                    regex: new RegExp(`(${word})`, 'gi'),
+                    regex: new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
                     note: markNotes[word] || '',
                     image: markImages[word] || ''
                 }));
             }
             const wordData = window.cachedWordData;
             
-            // 优化的文本节点查找 - 使用更高效的选择器
+            // 优化的文本节点查找 - 查找所有可能的文本节点
             function findTextNodes() {
                 const textNodes = [];
-                // 只查找段落和div中的文本节点，避免遍历整个文档
-                const paragraphs = doc.querySelectorAll('p, div');
                 
-                paragraphs.forEach(paragraph => {
-                    // 跳过特殊元素
-                    if (paragraph.closest('h1, h2, h3, h4, h5, h6, .title, .chapter-title, .section-title, .epub-container, .chapter, .section')) {
-                        return;
-                    }
-                    
-                    // 检查段落是否包含标记词
-                    const text = paragraph.textContent;
-                    const hasMarkWords = wordData.some(({ word }) => 
-                        text.toLowerCase().includes(word.toLowerCase())
-                    );
-                    
-                    if (!hasMarkWords) return;
-                    
-                    // 只处理包含标记词的段落中的文本节点
-                    const walker = doc.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT, {
-                        acceptNode: function(node) {
-                            const parent = node.parentElement;
-                            if (!parent) return NodeFilter.FILTER_REJECT;
-                            
-                            // 跳过脚本和样式
-                            const tagName = parent.tagName.toLowerCase();
-                            if (tagName === 'script' || tagName === 'style') {
-                                return NodeFilter.FILTER_REJECT;
-                            }
-                            
-                            // 检查文本是否包含标记词
-                            const nodeText = node.textContent;
-                            return wordData.some(({ word }) => 
-                                nodeText.toLowerCase().includes(word.toLowerCase())
-                            ) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+                // 使用TreeWalker遍历所有文本节点，确保不遗漏
+                const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, {
+                    acceptNode: function(node) {
+                        const parent = node.parentElement;
+                        if (!parent) return NodeFilter.FILTER_REJECT;
+                        
+                        // 跳过脚本、样式和已处理的节点
+                        const tagName = parent.tagName.toLowerCase();
+                        if (tagName === 'script' || tagName === 'style' || 
+                            parent.classList.contains('mark-note') || 
+                            parent.classList.contains('mark-image')) {
+                            return NodeFilter.FILTER_REJECT;
                         }
-                    }, false);
-                    
-                    let node;
-                    while (node = walker.nextNode()) {
-                        textNodes.push(node);
+                        
+                        // 检查文本是否包含标记词
+                        const nodeText = node.textContent;
+                        if (!nodeText || nodeText.trim().length === 0) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        
+                        // 检查是否包含任何标记词
+                        const hasMarkWords = wordData.some(({ word }) => 
+                            nodeText.toLowerCase().includes(word.toLowerCase())
+                        );
+                        
+                        return hasMarkWords ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
                     }
-                });
+                }, false);
+                
+                let node;
+                while (node = walker.nextNode()) {
+                    textNodes.push(node);
+                }
                 
                 return textNodes;
             }
@@ -3342,7 +3334,9 @@
                             fragment.appendChild(doc.createTextNode(text.slice(lastIndex, match.start)));
                         }
                         
-                        fragment.appendChild(doc.createTextNode(match.word));
+                        // 创建标记的文本节点
+                        const markedText = doc.createTextNode(match.word);
+                        fragment.appendChild(markedText);
                         
                         // 创建标记元素（复用样式）
                         if (match.note) {
@@ -3445,7 +3439,10 @@
             // 主处理逻辑
             try {
                 const textNodes = findTextNodes();
-                if (textNodes.length === 0) return;
+                if (textNodes.length === 0) {
+                    console.log('未找到包含标记词的文本节点');
+                    return;
+                }
                 
                 console.log(`找到 ${textNodes.length} 个包含标记词的文本节点`);
                 
@@ -3463,13 +3460,24 @@
                 const appliedMarks = doc.querySelectorAll('.mark-note, .mark-image');
                 console.log(`成功应用 ${appliedMarks.length} 个标记`);
                 
+                // 验证标记是否完整应用
+                const totalExpectedMarks = markWords.reduce((count, word) => {
+                    const note = markNotes[word] || '';
+                    const image = markImages[word] || '';
+                    return count + (note ? 1 : 0) + (image ? 1 : 0);
+                }, 0);
+                
+                if (appliedMarks.length < totalExpectedMarks) {
+                    console.warn(`标记应用可能不完整: 期望 ${totalExpectedMarks} 个，实际 ${appliedMarks.length} 个`);
+                }
+                
             } catch (error) {
                 console.error('应用标记时发生错误:', error);
             }
         }
 
-        // 优化的标记重试函数 - 减少不必要的重试，提升性能
-        function applyMarksWithRetry(maxRetries = 2, delay = 800) {
+        // 优化的标记重试函数 - 确保标记完整应用
+        function applyMarksWithRetry(maxRetries = 3, delay = 500) {
             // 如果没有标记词，直接返回
             if (markWords.length === 0) {
                 return;
@@ -3486,7 +3494,25 @@
                         const existingMarks = iframe.contentDocument.querySelectorAll('.mark-note, .mark-image');
                         if (existingMarks.length > 0) {
                             console.log(`标记已存在，跳过应用，共 ${existingMarks.length} 个标记`);
-                            return;
+                            
+                            // 验证现有标记是否完整
+                            const expectedMarks = markWords.reduce((count, word) => {
+                                const note = markNotes[word] || '';
+                                const image = markImages[word] || '';
+                                return count + (note ? 1 : 0) + (image ? 1 : 0);
+                            }, 0);
+                            
+                            if (existingMarks.length >= expectedMarks) {
+                                console.log('标记应用完整，无需重试');
+                                return;
+                            } else {
+                                console.log(`标记不完整: 期望 ${expectedMarks} 个，实际 ${existingMarks.length} 个，继续重试`);
+                                // 清除不完整的标记，重新应用
+                                existingMarks.forEach(mark => mark.remove());
+                                if (iframe.contentDocument.body) {
+                                    iframe.contentDocument.body.removeAttribute('data-marks-applied');
+                                }
+                            }
                         }
                     }
                     
@@ -3497,17 +3523,31 @@
                         const appliedMarks = iframe.contentDocument.querySelectorAll('.mark-note, .mark-image');
                         if (appliedMarks.length > 0) {
                             console.log(`标记应用成功，共 ${appliedMarks.length} 个标记`);
-                            return;
+                            
+                            // 验证标记完整性
+                            const expectedMarks = markWords.reduce((count, word) => {
+                                const note = markNotes[word] || '';
+                                const image = markImages[word] || '';
+                                return count + (note ? 1 : 0) + (image ? 1 : 0);
+                            }, 0);
+                            
+                            if (appliedMarks.length >= expectedMarks) {
+                                console.log('标记应用完整，无需重试');
+                                return;
+                            } else {
+                                console.log(`标记应用不完整: 期望 ${expectedMarks} 个，实际 ${appliedMarks.length} 个`);
+                            }
                         }
                     }
                     
-                    // 只在必要时重试，减少重试次数
+                    // 如果标记不完整，继续重试
                     if (retryCount < maxRetries) {
                         retryCount++;
-                        console.log(`标记应用可能失败，${delay}ms后进行第${retryCount}次重试...`);
+                        console.log(`标记应用不完整，${delay}ms后进行第${retryCount}次重试...`);
                         setTimeout(attemptApply, delay);
                     } else {
                         console.log('标记应用重试次数已达上限，停止重试');
+                        console.warn('建议检查标记词是否正确，或刷新页面重试');
                     }
                     
                 } catch (error) {
@@ -3523,7 +3563,7 @@
             attemptApply();
         }
 
-        // 优化的标记观察器 - 减少不必要的DOM监听和标记应用
+        // 优化的标记观察器 - 确保标记及时应用
         function setupMarkObserver() {
             const viewer = document.getElementById('viewer');
             if (!viewer) return;
@@ -3533,7 +3573,7 @@
                 return () => {}; // 返回空清理函数
             }
             
-            // 监听iframe的加载
+            // 监听iframe的加载和内容变化
             const observer = new MutationObserver((mutations) => {
                 let shouldApplyMarks = false;
                 
@@ -3552,7 +3592,7 @@
                                         if (markWords.length > 0) {
                                             applyMarksWithRetry();
                                         }
-                                    }, 500);
+                                    }, 300);
                                 });
                                 
                                 // 如果iframe已经加载完成
@@ -3562,10 +3602,24 @@
                                         if (markWords.length > 0) {
                                             applyMarksWithRetry();
                                         }
-                                    }, 200);
+                                    }, 100);
                                 }
                             }
                         });
+                    }
+                    
+                    // 监听内容变化（如翻页后的内容更新）
+                    if (mutation.type === 'childList' && mutation.target.tagName === 'BODY') {
+                        const hasContentChange = Array.from(mutation.addedNodes).some(node => 
+                            node.nodeType === Node.ELEMENT_NODE && 
+                            !node.classList.contains('mark-note') && 
+                            !node.classList.contains('mark-image')
+                        );
+                        
+                        if (hasContentChange) {
+                            console.log('检测到内容变化，准备重新应用标记...');
+                            shouldApplyMarks = true;
+                        }
                     }
                 });
                 
@@ -3576,10 +3630,10 @@
                 }
             });
             
-            // 只监听必要的DOM变化
+            // 监听必要的DOM变化
             observer.observe(viewer, {
                 childList: true,
-                subtree: false // 不监听子树变化，减少性能开销
+                subtree: true // 监听子树变化，确保内容变化能被检测到
             });
             
             // 清理函数
@@ -3972,16 +4026,47 @@
             width: 100%;
         `;
         markStatusBtn.onclick = () => {
+            const viewer = document.getElementById('viewer');
+            const iframe = viewer.querySelector('iframe');
+            let appliedMarksCount = 0;
+            let appliedMarksDetails = '';
+            
+            if (iframe && iframe.contentDocument) {
+                const appliedMarks = iframe.contentDocument.querySelectorAll('.mark-note, .mark-image');
+                appliedMarksCount = appliedMarks.length;
+                
+                // 统计每种类型的标记数量
+                const noteMarks = iframe.contentDocument.querySelectorAll('.mark-note');
+                const imageMarks = iframe.contentDocument.querySelectorAll('.mark-image');
+                
+                appliedMarksDetails = `\n已应用标记: ${appliedMarksCount} 个\n- 注释标记: ${noteMarks.length} 个\n- 图片标记: ${imageMarks.length} 个`;
+                
+                // 检查标记完整性
+                const expectedMarks = markWords.reduce((count, word) => {
+                    const note = markNotes[word] || '';
+                    const image = markImages[word] || '';
+                    return count + (note ? 1 : 0) + (image ? 1 : 0);
+                }, 0);
+                
+                if (appliedMarksCount < expectedMarks) {
+                    appliedMarksDetails += `\n⚠️ 标记不完整: 期望 ${expectedMarks} 个，实际 ${appliedMarksCount} 个`;
+                } else {
+                    appliedMarksDetails += `\n✅ 标记应用完整`;
+                }
+            }
+            
             const status = {
                 markWords: markWords.length,
                 markNotes: Object.keys(markNotes).length,
                 markImages: Object.keys(markImages).length,
                 markGroups: Object.keys(markGroups).length,
                 currentBook: currentBookFileName,
-                hasRendition: !!rendition
+                hasRendition: !!rendition,
+                appliedMarks: appliedMarksCount
             };
+            
             console.log('当前标记状态:', status);
-            alert(`标记状态:\n标记词: ${status.markWords}\n注释: ${status.markNotes}\n图片: ${status.markImages}\n分组: ${status.markGroups}\n当前书籍: ${status.currentBook || '无'}\n渲染器: ${status.hasRendition ? '已加载' : '未加载'}`);
+            alert(`标记状态:${appliedMarksDetails}\n\n配置信息:\n标记词: ${status.markWords}\n注释: ${status.markNotes}\n图片: ${status.markImages}\n分组: ${status.markGroups}\n当前书籍: ${status.currentBook || '无'}\n渲染器: ${status.hasRendition ? '已加载' : '未加载'}`);
         };
         
         // 添加强制重新应用标记按钮
@@ -4000,9 +4085,69 @@
                 alert('没有标记词需要应用');
                 return;
             }
+            
             console.log('强制重新应用标记...');
-            applyMarksWithRetry(5, 200); // 增加重试次数和减少延迟
-            alert('正在重新应用标记，请查看控制台输出');
+            
+            // 清除所有现有标记
+            const viewer = document.getElementById('viewer');
+            const iframe = viewer.querySelector('iframe');
+            if (iframe && iframe.contentDocument) {
+                const existingMarks = iframe.contentDocument.querySelectorAll('.mark-note, .mark-image');
+                existingMarks.forEach(mark => mark.remove());
+                
+                // 清除标记状态
+                if (iframe.contentDocument.body) {
+                    iframe.contentDocument.body.removeAttribute('data-marks-applied');
+                }
+                
+                console.log(`清除了 ${existingMarks.length} 个现有标记`);
+            }
+            
+            // 强制重新应用标记
+            applyMarksWithRetry(5, 300); // 增加重试次数，适当增加延迟
+            
+            alert('正在重新应用标记，请查看控制台输出。如果仍有问题，请尝试刷新页面。');
+        };
+        
+        // 添加标记调试按钮
+        const debugMarksBtn = document.createElement('button');
+        debugMarksBtn.textContent = '标记调试信息';
+        debugMarksBtn.className = 'control-btn';
+        debugMarksBtn.style.cssText = `
+            background: #20c997;
+            color: white;
+            border: 1px solid #20c997;
+            margin-top: 8px;
+            width: 100%;
+        `;
+        debugMarksBtn.onclick = () => {
+            if (markWords.length === 0) {
+                alert('没有标记词配置');
+                return;
+            }
+            
+            console.log('=== 标记调试信息 ===');
+            console.log('标记词列表:', markWords);
+            console.log('标记注释:', markNotes);
+            console.log('标记图片:', Object.keys(markImages));
+            console.log('标记分组:', markGroups);
+            
+            // 检查当前页面内容
+            const viewer = document.getElementById('viewer');
+            const iframe = viewer.querySelector('iframe');
+            if (iframe && iframe.contentDocument) {
+                const body = iframe.contentDocument.body;
+                console.log('当前页面内容长度:', body.textContent.length);
+                console.log('页面HTML结构:', body.innerHTML.substring(0, 500) + '...');
+                
+                // 检查是否包含标记词
+                markWords.forEach(word => {
+                    const containsWord = body.textContent.toLowerCase().includes(word.toLowerCase());
+                    console.log(`页面是否包含"${word}":`, containsWord);
+                });
+            }
+            
+            alert('标记调试信息已输出到控制台，请按F12查看');
         };
         
         // 找到合适的位置插入按钮
@@ -4010,6 +4155,7 @@
         if (markSettings) {
             markSettings.appendChild(markStatusBtn);
             markSettings.appendChild(reapplyMarksBtn);
+            markSettings.appendChild(debugMarksBtn);
         }
             
 
