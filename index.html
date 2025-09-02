@@ -2001,6 +2001,9 @@
                 
 
                 
+                // 初始化标记观察器
+                initMarkObserver();
+                
                 // 清理之前的标记并重新应用
 
                 setTimeout(async () => {
@@ -2012,8 +2015,14 @@
                         existingMarks.forEach(mark => mark.remove());
                     }
                     
-                                                          // 重新应用标记
-                  applyMarks();
+                    // 重新应用标记
+                    console.log('开始重新应用标记，当前标记词数量:', markWords.length);
+                    if (markWords.length > 0) {
+                        console.log('标记词列表:', markWords);
+                        applyMarksWithRetry();
+                    } else {
+                        console.log('没有标记词需要应用');
+                    }
                 }, 1500);
                 
 
@@ -2045,6 +2054,7 @@
 
         // 防抖的标记应用和目录更新
         const debouncedApplyMarks = debounce(applyMarks, 150);
+        const debouncedApplyMarksWithRetry = debounce(applyMarksWithRetry, 150);
         const debouncedUpdateTOCHighlight = debounce(updateTOCHighlight, 100);
 
         // 防抖的阅读时间更新（5秒内只更新一次）
@@ -2070,7 +2080,7 @@
                 // 防抖更新书籍最后阅读时间
                 debouncedUpdateLastRead(currentBookFileName);
                 // 批量更新UI
-                debouncedApplyMarks();
+                debouncedApplyMarksWithRetry();
                 debouncedUpdateTOCHighlight();
             }
         }
@@ -2081,7 +2091,7 @@
                 // 防抖更新书籍最后阅读时间
                 debouncedUpdateLastRead(currentBookFileName);
                 // 批量更新UI
-                debouncedApplyMarks();
+                debouncedApplyMarksWithRetry();
                 debouncedUpdateTOCHighlight();
             }
         }
@@ -2205,7 +2215,7 @@
                                      await rendition.display(item.href);
                                      hideUnifiedPanel();
                                                                                                                  // 批量更新UI
-                                       debouncedApplyMarks();
+                                       debouncedApplyMarksWithRetry();
                                        debouncedUpdateTOCHighlight();
                                  } catch (error) {
                                      console.error('跳转失败:', error);
@@ -2247,8 +2257,16 @@
         // 初始化标记数据
         async function initMarkData() {
             try {
+                console.log('开始初始化标记数据...');
                 const marks = await dataStore.getAllMarks();
                 const groups = await dataStore.getAllMarkGroups();
+                
+                console.log('从数据库获取的数据:', {
+                    marks: marks.length,
+                    groups: groups.length,
+                    marksData: marks.slice(0, 3), // 显示前3个标记
+                    groupsData: groups.slice(0, 3) // 显示前3个组
+                });
                 
                 // 转换数据格式以兼容现有代码
                 markWords = [];
@@ -2272,6 +2290,15 @@
                 
                 // 验证并修复groupId不一致问题
                 await validateAndFixGroupIds();
+                
+                // 输出最终加载的标记数据状态
+                console.log('标记数据初始化完成:', {
+                    markWords: markWords.length,
+                    markNotes: Object.keys(markNotes).length,
+                    markImages: Object.keys(markImages).length,
+                    markGroups: Object.keys(markGroups).length,
+                    sampleWords: markWords.slice(0, 5) // 显示前5个标记词
+                });
                 
             } catch (error) {
                 console.error('初始化标记数据失败:', error);
@@ -3193,64 +3220,79 @@
                 image: markImages[word] || ''
             }));
             
-            // 一次性获取所有文本节点
-            const textNodes = [];
-            const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT, null, false);
-            
-            let node;
-            while (node = walker.nextNode()) {
-                textNodes.push(node);
+            // 改进的文本节点查找和处理
+            function processTextNodes() {
+                const textNodes = [];
+                const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
+                    acceptNode: function(node) {
+                        // 过滤掉脚本和样式中的文本
+                        const parent = node.parentElement;
+                        if (!parent) return NodeFilter.FILTER_REJECT;
+                        
+                        const tagName = parent.tagName.toLowerCase();
+                        if (tagName === 'script' || tagName === 'style') {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        
+                        // 检查是否在特殊元素中（标题、导航等）
+                        const className = typeof parent.className === 'string' ? parent.className.toLowerCase() : '';
+                        const id = parent.id ? parent.id.toLowerCase() : '';
+                        
+                        // 检查是否在标题或导航元素中
+                        const isHeading = tagName.match(/^h[1-6]$/);
+                        const isNavigation = tagName === 'nav' || (className && className.includes('nav')) || (id && id.includes('nav'));
+                        const isToc = (className && className.includes('toc')) || (id && id.includes('toc'));
+                        const isTitle = (className && className.includes('title')) || (id && id.includes('title'));
+                        const isHeader = (className && className.includes('header')) || (id && id.includes('header'));
+                        
+                        if (isHeading || isNavigation || isToc || isTitle || isHeader) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        
+                        // 检查是否在epub.js的特殊元素中
+                        const isEpubSpecial = (className && className.includes('epub')) || 
+                                            (className && className.includes('chapter')) || 
+                                            (className && className.includes('section')) ||
+                                            parent.closest('.epub-container') ||
+                                            parent.closest('.chapter') ||
+                                            parent.closest('.section');
+                        
+                        // 检查是否在标题相关的元素中
+                        const isInTitle = parent.closest('h1, h2, h3, h4, h5, h6, .title, .chapter-title, .section-title');
+                        
+                        if (isEpubSpecial || isInTitle) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        
+                        // 确保只在正文段落中应用标记
+                        const isInParagraph = parent.tagName === 'P' || 
+                                            parent.tagName === 'DIV' ||
+                                            parent.closest('p, div');
+                        
+                        if (!isInParagraph) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        
+                        // 检查文本内容是否包含标记词
+                        const text = node.textContent;
+                        const hasMarkWords = wordData.some(({ word }) => 
+                            text.toLowerCase().includes(word.toLowerCase())
+                        );
+                        
+                        return hasMarkWords ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+                    }
+                }, false);
+                
+                let node;
+                while (node = walker.nextNode()) {
+                    textNodes.push(node);
+                }
+                
+                return textNodes;
             }
             
-            // 批量处理文本节点
-            textNodes.forEach(textNode => {
-                // 检查是否在特殊元素中（标题、导航等）
-                const parentElement = textNode.parentElement;
-                if (!parentElement) return;
-                
-                // 跳过标题、导航等特殊元素
-                const tagName = parentElement.tagName.toLowerCase();
-                const className = typeof parentElement.className === 'string' ? parentElement.className.toLowerCase() : '';
-                const id = parentElement.id ? parentElement.id.toLowerCase() : '';
-                
-                // 检查是否在标题或导航元素中
-                const isHeading = tagName.match(/^h[1-6]$/);
-                const isNavigation = tagName === 'nav' || (className && className.includes('nav')) || (id && id.includes('nav'));
-                const isToc = (className && className.includes('toc')) || (id && id.includes('toc'));
-                const isTitle = (className && className.includes('title')) || (id && id.includes('title'));
-                const isHeader = (className && className.includes('header')) || (id && id.includes('header'));
-                
-                if (isHeading || isNavigation || isToc || isTitle || isHeader) {
-                    
-                    return;
-                }
-                
-                // 检查是否在epub.js的特殊元素中
-                const isEpubSpecial = (className && className.includes('epub')) || 
-                                    (className && className.includes('chapter')) || 
-                                    (className && className.includes('section')) ||
-                                    parentElement.closest('.epub-container') ||
-                                    parentElement.closest('.chapter') ||
-                                    parentElement.closest('.section');
-                
-                // 检查是否在标题相关的元素中
-                const isInTitle = parentElement.closest('h1, h2, h3, h4, h5, h6, .title, .chapter-title, .section-title');
-                
-                if (isEpubSpecial || isInTitle) {
-                    
-                    return;
-                }
-                
-                // 确保只在正文段落中应用标记
-                const isInParagraph = parentElement.tagName === 'P' || 
-                                    parentElement.tagName === 'DIV' ||
-                                    parentElement.closest('p, div');
-                
-                if (!isInParagraph) {
-                    
-                    return;
-                }
-                
+            // 处理单个文本节点
+            function processTextNode(textNode) {
                 const text = textNode.textContent;
                 
                 // 收集所有匹配项，按位置排序
@@ -3390,7 +3432,115 @@
                 if (fragment.childNodes.length > 0) {
                     textNode.parentNode.replaceChild(fragment, textNode);
                 }
+            }
+            
+            // 主处理逻辑
+            try {
+                const textNodes = processTextNodes();
+                console.log(`找到 ${textNodes.length} 个包含标记词的文本节点`);
+                
+                // 批量处理文本节点
+                textNodes.forEach(processTextNode);
+                
+                // 验证标记是否成功应用
+                const appliedMarks = doc.querySelectorAll('.mark-note, .mark-image');
+                console.log(`成功应用 ${appliedMarks.length} 个标记`);
+                
+            } catch (error) {
+                console.error('应用标记时发生错误:', error);
+            }
+        }
+
+        // 改进的标记应用函数，支持延迟重试
+        function applyMarksWithRetry(maxRetries = 3, delay = 500) {
+            let retryCount = 0;
+            
+            function attemptApply() {
+                try {
+                    applyMarks();
+                    
+                    // 验证标记是否成功应用
+                    const viewer = document.getElementById('viewer');
+                    const iframe = viewer.querySelector('iframe');
+                    if (iframe && iframe.contentDocument) {
+                        const appliedMarks = iframe.contentDocument.querySelectorAll('.mark-note, .mark-image');
+                        if (appliedMarks.length > 0) {
+                            console.log(`标记应用成功，共 ${appliedMarks.length} 个标记`);
+                            return;
+                        }
+                    }
+                    
+                    // 如果标记数量为0但应该有标记，尝试重试
+                    if (markWords.length > 0 && retryCount < maxRetries) {
+                        retryCount++;
+                        console.log(`标记应用可能失败，${delay}ms后进行第${retryCount}次重试...`);
+                        setTimeout(attemptApply, delay);
+                    }
+                    
+                } catch (error) {
+                    console.error('应用标记失败:', error);
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        console.log(`标记应用失败，${delay}ms后进行第${retryCount}次重试...`);
+                        setTimeout(attemptApply, delay);
+                    }
+                }
+            }
+            
+            attemptApply();
+        }
+
+        // 监听iframe内容变化，自动重新应用标记
+        function setupMarkObserver() {
+            const viewer = document.getElementById('viewer');
+            if (!viewer) return;
+            
+            // 监听iframe的加载
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach((node) => {
+                            if (node.tagName === 'IFRAME') {
+                                console.log('检测到新的iframe，等待加载完成后应用标记...');
+                                
+                                // 等待iframe加载完成
+                                node.addEventListener('load', () => {
+                                    console.log('iframe加载完成，应用标记...');
+                                    setTimeout(() => {
+                                        applyMarksWithRetry();
+                                    }, 300);
+                                });
+                                
+                                // 如果iframe已经加载完成
+                                if (node.contentDocument && node.contentDocument.readyState === 'complete') {
+                                    console.log('iframe已加载完成，立即应用标记...');
+                                    setTimeout(() => {
+                                        applyMarksWithRetry();
+                                    }, 100);
+                                }
+                            }
+                        });
+                    }
+                });
             });
+            
+            observer.observe(viewer, {
+                childList: true,
+                subtree: true
+            });
+            
+            // 清理函数
+            return () => observer.disconnect();
+        }
+
+        // 在页面加载完成后设置观察器
+        let markObserverCleanup = null;
+        
+        function initMarkObserver() {
+            if (markObserverCleanup) {
+                markObserverCleanup();
+            }
+            markObserverCleanup = setupMarkObserver();
         }
 
         // 添加标记按钮事件
@@ -3730,9 +3880,61 @@
             updateFontButtons();
             updateLineButtons();
             
-            // 标记导入导出功能
-            addButtonEvent('export-marks-btn', exportMarksData);
-            addButtonEvent('clear-marks-btn', clearAllMarks);
+                    // 标记导入导出功能
+        addButtonEvent('export-marks-btn', exportMarksData);
+        addButtonEvent('clear-marks-btn', clearAllMarks);
+        
+        // 添加标记状态检查按钮
+        const markStatusBtn = document.createElement('button');
+        markStatusBtn.textContent = '检查标记状态';
+        markStatusBtn.className = 'control-btn';
+        markStatusBtn.style.cssText = `
+            background: #6f42c1;
+            color: white;
+            border: 1px solid #6f42c1;
+            margin-top: 8px;
+            width: 100%;
+        `;
+        markStatusBtn.onclick = () => {
+            const status = {
+                markWords: markWords.length,
+                markNotes: Object.keys(markNotes).length,
+                markImages: Object.keys(markImages).length,
+                markGroups: Object.keys(markGroups).length,
+                currentBook: currentBookFileName,
+                hasRendition: !!rendition
+            };
+            console.log('当前标记状态:', status);
+            alert(`标记状态:\n标记词: ${status.markWords}\n注释: ${status.markNotes}\n图片: ${status.markImages}\n分组: ${status.markGroups}\n当前书籍: ${status.currentBook || '无'}\n渲染器: ${status.hasRendition ? '已加载' : '未加载'}`);
+        };
+        
+        // 添加强制重新应用标记按钮
+        const reapplyMarksBtn = document.createElement('button');
+        reapplyMarksBtn.textContent = '强制重新应用标记';
+        reapplyMarksBtn.className = 'control-btn';
+        reapplyMarksBtn.style.cssText = `
+            background: #fd7e14;
+            color: white;
+            border: 1px solid #fd7e14;
+            margin-top: 8px;
+            width: 100%;
+        `;
+        reapplyMarksBtn.onclick = () => {
+            if (markWords.length === 0) {
+                alert('没有标记词需要应用');
+                return;
+            }
+            console.log('强制重新应用标记...');
+            applyMarksWithRetry(5, 200); // 增加重试次数和减少延迟
+            alert('正在重新应用标记，请查看控制台输出');
+        };
+        
+        // 找到合适的位置插入按钮
+        const markSettings = document.querySelector('.mark-settings');
+        if (markSettings) {
+            markSettings.appendChild(markStatusBtn);
+            markSettings.appendChild(reapplyMarksBtn);
+        }
             
 
             
