@@ -2895,6 +2895,12 @@
                             <div style="color: #999; font-size: 12px; text-align: center;">
                                 <div style="font-size: 20px; margin-bottom: 6px;">⏳</div>
                                 <div>正在压缩图片...</div>
+                                <div style="font-size: 10px; color: #ccc; margin-top: 4px;">请稍候，大图片可能需要几秒钟</div>
+                                <div style="margin-top: 8px; font-size: 10px; color: #999;">文件大小: ${Math.round(file.size / 1024)}KB</div>
+                                <div style="margin-top: 4px; display: flex; gap: 4px; justify-content: center;">
+                                    <button onclick="cancelImageCompression()" style="padding: 4px 8px; font-size: 10px; background: #ff6b6b; color: white; border: none; border-radius: 4px; cursor: pointer;">取消压缩</button>
+                                    <button onclick="toggleDebugMode()" style="padding: 4px 8px; font-size: 10px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">${debugMode ? '关闭调试' : '开启调试'}</button>
+                                </div>
                             </div>
                         `;
                         
@@ -2905,17 +2911,59 @@
                         const quality = isMobile ? 0.7 : 0.8;
                         
                         console.log('设备检测:', { isMobile, maxWidth, maxHeight, quality });
+                        console.log('开始压缩图片，文件大小:', Math.round(file.size / 1024) + 'KB');
+                        debugLog('开始图片压缩流程', { 
+                            文件名: file.name,
+                            文件大小: file.size,
+                            文件类型: file.type,
+                            设备类型: isMobile ? '移动设备' : '桌面设备',
+                            压缩参数: { maxWidth, maxHeight, quality }
+                        });
+                        
                         const compressedImageData = await compressImage(file, maxWidth, maxHeight, quality);
                         
-                        document.getElementById('edit-image-preview').innerHTML = `<img src="${compressedImageData}" style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer; object-fit: contain;" onclick="showLargeImage('${compressedImageData}')" title="点击查看大图">`;
+                        debugLog('图片压缩完成', { 
+                            压缩后大小: Math.round(compressedImageData.length * 0.75),
+                            压缩比例: Math.round((1 - (compressedImageData.length * 0.75) / file.size) * 100) + '%'
+                        });
+                        
+                        // 显示压缩成功的信息
+                        document.getElementById('edit-image-preview').innerHTML = `
+                            <div style="text-align: center;">
+                                <img src="${compressedImageData}" style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer; object-fit: contain;" onclick="showLargeImage('${compressedImageData}')" title="点击查看大图">
+                                <div style="margin-top: 8px; font-size: 10px; color: #28a745;">✅ 压缩完成</div>
+                            </div>
+                        `;
                         window.editImageData = compressedImageData;
                     } catch (error) {
                         console.error('图片压缩失败:', error);
+                        debugLog('图片压缩失败，使用原始图片', { 
+                            错误信息: error.message,
+                            错误类型: error.name,
+                            错误堆栈: error.stack
+                        });
+                        
+                        // 显示错误信息
+                        document.getElementById('edit-image-preview').innerHTML = `
+                            <div style="color: #dc3545; font-size: 12px; text-align: center;">
+                                <div style="font-size: 20px; margin-bottom: 6px;">⚠️</div>
+                                <div>压缩失败: ${error.message}</div>
+                                <div style="font-size: 10px; color: #999; margin-top: 4px;">正在使用原始图片...</div>
+                                <button onclick="toggleDebugMode()" style="margin-top: 8px; padding: 4px 8px; font-size: 10px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">${debugMode ? '关闭调试' : '开启调试'}</button>
+                            </div>
+                        `;
+                        
                         // 如果压缩失败，使用原始图片
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             const imageData = e.target.result;
-                            document.getElementById('edit-image-preview').innerHTML = `<img src="${imageData}" style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer; object-fit: contain;" onclick="showLargeImage('${imageData}')" title="点击查看大图">`;
+                            debugLog('原始图片加载成功', { 图片大小: Math.round(imageData.length * 0.75) });
+                            document.getElementById('edit-image-preview').innerHTML = `
+                                <div style="text-align: center;">
+                                    <img src="${imageData}" style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer; object-fit: contain;" onclick="showLargeImage('${imageData}')" title="点击查看大图">
+                                    <div style="margin-top: 8px; font-size: 10px; color: #ffc107;">⚠️ 使用原始图片</div>
+                                </div>
+                            `;
                             window.editImageData = imageData;
                         };
                         reader.readAsDataURL(file);
@@ -4804,14 +4852,119 @@
             document.body.classList.add('offline');
         });
 
+        // 全局变量用于取消压缩
+        let currentCompressionAbortController = null;
+        
+        // 取消图片压缩
+        function cancelImageCompression() {
+            if (currentCompressionAbortController) {
+                currentCompressionAbortController.abort();
+                currentCompressionAbortController = null;
+                // 显示取消状态
+                document.getElementById('edit-image-preview').innerHTML = `
+                    <div style="color: #999; font-size: 12px; text-align: center;">
+                        <div style="font-size: 20px; margin-bottom: 6px;">❌</div>
+                        <div>压缩已取消</div>
+                        <div style="font-size: 10px; color: #ccc; margin-top: 4px;">请重新选择图片</div>
+                        <button onclick="toggleDebugMode()" style="margin-top: 8px; padding: 4px 8px; font-size: 10px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">${debugMode ? '关闭调试' : '开启调试'}</button>
+                    </div>
+                `;
+            }
+        }
+        
+        // 更新压缩进度
+        function updateCompressionProgress(stage, details = '') {
+            const preview = document.getElementById('edit-image-preview');
+            if (preview) {
+                const currentContent = preview.innerHTML;
+                if (currentContent.includes('正在压缩图片')) {
+                    preview.innerHTML = `
+                        <div style="color: #999; font-size: 12px; text-align: center;">
+                            <div style="font-size: 20px; margin-bottom: 6px;">⏳</div>
+                            <div>正在压缩图片...</div>
+                            <div style="font-size: 10px; color: #ccc; margin-top: 4px;">${stage}</div>
+                            ${details ? `<div style="font-size: 10px; color: #999; margin-top: 4px;">${details}</div>` : ''}
+                            <div style="margin-top: 4px; display: flex; gap: 4px; justify-content: center;">
+                                <button onclick="cancelImageCompression()" style="padding: 4px 8px; font-size: 10px; background: #ff6b6b; color: white; border: none; border-radius: 4px; cursor: pointer;">取消压缩</button>
+                                <button onclick="toggleDebugMode()" style="padding: 4px 8px; font-size: 10px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">${debugMode ? '关闭调试' : '开启调试'}</button>
+                            </div>
+                        </div>
+                    `;
+                } else if (stage === '压缩超时' || stage === '图片加载失败' || stage === '压缩失败') {
+                    // 处理错误状态
+                    const icon = stage === '压缩超时' ? '⏰' : stage === '图片加载失败' ? '❌' : '⚠️';
+                    const color = stage === '压缩超时' ? '#ffc107' : stage === '图片加载失败' ? '#dc3545' : '#dc3545';
+                    preview.innerHTML = `
+                        <div style="color: ${color}; font-size: 12px; text-align: center;">
+                            <div style="font-size: 20px; margin-bottom: 6px;">${icon}</div>
+                            <div>${stage}</div>
+                            ${details ? `<div style="font-size: 10px; color: #999; margin-top: 4px;">${details}</div>` : ''}
+                            <button onclick="toggleDebugMode()" style="margin-top: 8px; padding: 4px 8px; font-size: 10px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">${debugMode ? '关闭调试' : '开启调试'}</button>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        // 调试模式开关
+        let debugMode = false;
+        
+        // 切换调试模式
+        function toggleDebugMode() {
+            debugMode = !debugMode;
+            console.log('调试模式:', debugMode ? '开启' : '关闭');
+            if (debugMode) {
+                console.log('图片压缩调试信息将显示在控制台中');
+            }
+        }
+        
+        // 调试日志
+        function debugLog(message, data = null) {
+            if (debugMode) {
+                if (data) {
+                    console.log(`[图片压缩调试] ${message}`, data);
+                } else {
+                    console.log(`[图片压缩调试] ${message}`);
+                }
+            }
+        }
+        
         // 优化的图片压缩函数 - 减少内存占用，提升性能
         function compressImage(file, maxWidth = 600, maxHeight = 450, quality = 0.7) {
             return new Promise((resolve, reject) => {
+                debugLog('开始图片压缩函数', { 
+                    文件名: file.name,
+                    文件大小: file.size,
+                    文件类型: file.type,
+                    压缩参数: { maxWidth, maxHeight, quality }
+                });
+                
+                // 创建AbortController用于取消操作
+                currentCompressionAbortController = new AbortController();
+                const signal = currentCompressionAbortController.signal;
+                
+                // 添加超时机制
+                const timeout = setTimeout(() => {
+                    debugLog('图片压缩超时');
+                    currentCompressionAbortController = null;
+                    // 显示超时信息
+                    updateCompressionProgress('压缩超时', '请尝试选择较小的图片或重试');
+                    reject(new Error('图片压缩超时，请重试'));
+                }, 30000); // 30秒超时
+                
                 // 如果文件太小，直接返回原文件
                 if (file.size < 100 * 1024) { // 小于100KB
+                    debugLog('文件太小，跳过压缩', { 文件大小: file.size });
+                    clearTimeout(timeout);
                     const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.onerror = () => reject(new Error('文件读取失败'));
+                    reader.onload = (e) => {
+                        debugLog('小文件读取成功', { 结果长度: e.target.result.length });
+                        resolve(e.target.result);
+                    };
+                    reader.onerror = () => {
+                        debugLog('小文件读取失败');
+                        reject(new Error('文件读取失败'));
+                    };
                     reader.readAsDataURL(file);
                     return;
                 }
@@ -4820,24 +4973,48 @@
                 const ctx = canvas.getContext('2d');
                 
                 if (!ctx) {
+                    debugLog('Canvas 2D上下文不可用');
                     reject(new Error('Canvas 2D上下文不可用'));
                     return;
                 }
+                
+                debugLog('Canvas创建成功', { canvas宽度: canvas.width, canvas高度: canvas.height });
                 
                 const img = new Image();
                 
                 img.onload = function() {
                     try {
+                        debugLog('图片加载完成', { 图片宽度: img.width, 图片高度: img.height, 图片类型: img.src.substring(0, 50) + '...' });
+                        
+                        // 检查是否已取消
+                        if (signal.aborted) {
+                            debugLog('图片压缩已取消');
+                            clearTimeout(timeout);
+                            currentCompressionAbortController = null;
+                            reject(new Error('图片压缩已取消'));
+                            return;
+                        }
+                        
+                        // 更新进度
+                        updateCompressionProgress('正在处理图片尺寸...', `原始: ${img.width}x${img.height}`);
+                        debugLog('开始处理图片尺寸', { 原始宽度: img.width, 原始高度: img.height, 最大宽度: maxWidth, 最大高度: maxHeight });
+                        
                         // 计算新的尺寸（更激进的压缩）
                         let { width, height } = img;
                         if (width > maxWidth) {
                             height = (height * maxWidth) / width;
                             width = maxWidth;
+                            debugLog('宽度超出限制，调整尺寸', { 新宽度: width, 新高度: height });
                         }
                         if (height > maxHeight) {
                             width = (width * maxHeight) / height;
                             height = maxHeight;
+                            debugLog('高度超出限制，调整尺寸', { 新宽度: width, 新高度: height });
                         }
+                        
+                        // 更新进度
+                        updateCompressionProgress('正在压缩图片...', `压缩后: ${width}x${height}`);
+                        debugLog('设置canvas尺寸', { canvas宽度: width, canvas高度: height });
                         
                         // 设置canvas尺寸
                         canvas.width = width;
@@ -4845,22 +5022,34 @@
                         
                         // 绘制图片
                         ctx.drawImage(img, 0, 0, width, height);
+                        debugLog('图片绘制完成');
                         
                         // 使用JPEG格式，降低质量以减少文件大小
                         const format = 'image/jpeg';
                         const finalQuality = Math.min(quality, 0.7); // 降低质量上限
+                        debugLog('开始压缩', { 格式: format, 质量: finalQuality });
                         
                         let compressedDataUrl;
                         try {
                             compressedDataUrl = canvas.toDataURL(format, finalQuality);
+                            debugLog('第一次压缩成功');
                         } catch (error) {
                             console.log('格式转换失败，尝试JPEG:', error);
+                            debugLog('格式转换失败，使用备用方案', error);
                             compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
                         }
                         
                         // 验证压缩效果
                         const compressedSize = Math.round(compressedDataUrl.length * 0.75);
                         const compressionRatio = Math.round((1 - compressedSize / file.size) * 100);
+                        
+                        debugLog('压缩结果', {
+                            原始大小: file.size,
+                            压缩后大小: compressedSize,
+                            压缩比例: compressionRatio + '%',
+                            格式: format,
+                            质量: finalQuality
+                        });
                         
                         console.log('图片压缩完成:', {
                             原始大小: file.size,
@@ -4870,45 +5059,129 @@
                             质量: finalQuality
                         });
                         
+                        // 更新进度
+                        updateCompressionProgress('压缩完成！', `压缩比例: ${compressionRatio}%`);
+                        
+                        // 检查是否已取消
+                        if (signal.aborted) {
+                            debugLog('图片压缩已取消');
+                            clearTimeout(timeout);
+                            currentCompressionAbortController = null;
+                            reject(new Error('图片压缩已取消'));
+                            return;
+                        }
+                        
                         // 如果压缩效果不好，进一步降低质量
                         if (compressedSize > file.size * 0.8) {
                             console.log('压缩效果不佳，进一步降低质量');
+                            debugLog('压缩效果不佳，开始重试', { 当前大小: compressedSize, 目标: file.size * 0.8 });
+                            updateCompressionProgress('压缩效果不佳，正在重试...', '使用更低质量');
                             try {
                                 const retryDataUrl = canvas.toDataURL('image/jpeg', 0.5);
                                 const retrySize = Math.round(retryDataUrl.length * 0.75);
+                                debugLog('重试压缩结果', { 重试大小: retrySize, 之前大小: compressedSize });
                                 
                                 if (retrySize < compressedSize) {
                                     console.log('使用更低质量:', retrySize);
+                                    debugLog('重试成功，使用更低质量', { 最终大小: retrySize });
+                                    
+                                    // 验证重试结果
+                                    if (!retryDataUrl || retryDataUrl.length === 0) {
+                                        clearTimeout(timeout);
+                                        currentCompressionAbortController = null;
+                                        reject(new Error('重试压缩结果无效'));
+                                        return;
+                                    }
+                                    
+                                    debugLog('准备返回重试结果', { 
+                                        结果长度: retryDataUrl.length,
+                                        结果类型: typeof retryDataUrl,
+                                        结果前缀: retryDataUrl.substring(0, 50) + '...'
+                                    });
+                                    
+                                    clearTimeout(timeout);
+                                    currentCompressionAbortController = null;
+                                    debugLog('Promise resolve - 重试压缩成功');
                                     resolve(retryDataUrl);
                                     return;
                                 }
                             } catch (error) {
                                 console.log('重试压缩失败:', error);
+                                debugLog('重试压缩失败', error);
                             }
                         }
                         
+                        // 验证最终结果
+                        if (!compressedDataUrl || compressedDataUrl.length === 0) {
+                            clearTimeout(timeout);
+                            currentCompressionAbortController = null;
+                            reject(new Error('压缩结果无效'));
+                            return;
+                        }
+                        
+                        // 最终验证和返回
+                        debugLog('准备返回压缩结果', { 
+                            结果长度: compressedDataUrl.length,
+                            结果类型: typeof compressedDataUrl,
+                            结果前缀: compressedDataUrl.substring(0, 50) + '...'
+                        });
+                        
+                        // 最终验证和返回
+                        debugLog('准备返回压缩结果', { 
+                            结果长度: compressedDataUrl.length,
+                            结果类型: typeof compressedDataUrl,
+                            结果前缀: compressedDataUrl.substring(0, 50) + '...'
+                        });
+                        
+                        clearTimeout(timeout);
+                        currentCompressionAbortController = null;
+                        debugLog('Promise resolve - 压缩成功');
                         resolve(compressedDataUrl);
                         
                     } catch (error) {
+                        clearTimeout(timeout);
+                        currentCompressionAbortController = null;
                         console.error('图片压缩失败:', error);
+                        debugLog('Promise reject - 压缩失败', { 错误: error.message, 错误类型: error.name });
+                        // 显示错误信息
+                        updateCompressionProgress('压缩失败', error.message || '未知错误');
                         reject(error);
                     } finally {
                         // 清理canvas内存
                         canvas.width = 0;
                         canvas.height = 0;
+                        debugLog('Canvas内存已清理');
+                        // 清理AbortController
+                        if (currentCompressionAbortController) {
+                            currentCompressionAbortController = null;
+                            debugLog('AbortController已清理');
+                        }
                     }
                 };
                 
                 img.onerror = function() {
+                    debugLog('图片加载失败');
+                    clearTimeout(timeout);
+                    currentCompressionAbortController = null;
+                    // 显示错误信息
+                    updateCompressionProgress('图片加载失败', '请检查图片格式是否正确');
                     reject(new Error('图片加载失败'));
                 };
                 
                 // 使用createObjectURL减少内存占用
                 const url = URL.createObjectURL(file);
+                debugLog('创建对象URL', { URL长度: url.length, URL前缀: url.substring(0, 50) + '...' });
                 img.src = url;
                 
-                // 图片加载完成后清理URL
-                img.onload = () => {
+                // 在原有的onload中清理URL
+                const originalOnload = img.onload;
+                img.onload = function() {
+                    // 调用原始的onload处理函数
+                    if (originalOnload) {
+                        originalOnload.call(this);
+                    }
+                    // 清理URL
+                    debugLog('清理对象URL');
                     URL.revokeObjectURL(url);
                 };
             });
@@ -5553,3 +5826,4 @@
     </script>
 </body>
 </html>
+
